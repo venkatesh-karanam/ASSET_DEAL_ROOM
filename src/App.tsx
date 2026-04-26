@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { AssetType, DealRoom } from './types'
 
 const storageKey = 'dealroom-ke-rooms'
+const ownersKey = 'dealroom-ke-owners'
 const initialChecks = {
   ardhiSearch: false,
   ntsaRecord: false,
@@ -23,8 +24,18 @@ function getInitialRooms(): DealRoom[] {
   }
 }
 
+function getInitialOwners(): Record<string, string> {
+  try {
+    const raw = window.localStorage.getItem(ownersKey)
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {}
+  } catch {
+    return {}
+  }
+}
+
 function getRiskStatus(room: DealRoom): { status: string; color: string } {
   if (
+    room.fraud ||
     room.conflict ||
     (!room.officialChecks.ardhiSearch && room.assetType === 'land') ||
     (!room.officialChecks.ntsaRecord && room.assetType === 'car')
@@ -41,6 +52,7 @@ function getRiskStatus(room: DealRoom): { status: string; color: string } {
 
 function App() {
   const [rooms, setRooms] = useState<DealRoom[]>(getInitialRooms)
+  const [assetOwners, setAssetOwners] = useState<Record<string, string>>(getInitialOwners)
   const [assetType, setAssetType] = useState<AssetType>('land')
   const [identifier, setIdentifier] = useState('')
   const [title, setTitle] = useState('')
@@ -59,6 +71,10 @@ function App() {
     window.localStorage.setItem(storageKey, JSON.stringify(rooms))
   }, [rooms])
 
+  useEffect(() => {
+    window.localStorage.setItem(ownersKey, JSON.stringify(assetOwners))
+  }, [assetOwners])
+
   const activeConflict = useMemo(() => {
     const existing = rooms.find(
       (room) => room.assetType === assetType && room.identifier.trim().toLowerCase() === identifier.trim().toLowerCase(),
@@ -69,8 +85,11 @@ function App() {
   const riskSummary = useMemo(() => {
     if (!identifier || !buyerName || !sellerName) return 'Complete the form to see risk status.'
     const conflict = activeConflict ? 'Conflict detected: duplicate asset room exists.' : ''
-    return conflict || 'No obvious conflict detected yet.'
-  }, [activeConflict, buyerName, identifier, sellerName])
+    const key = `${assetType}-${identifier.trim().toLowerCase()}`
+    const currentOwner = assetOwners[key]
+    const fraudCheck = currentOwner && currentOwner !== sellerName.trim() ? 'Fraud risk: Seller is not the current owner.' : ''
+    return conflict || fraudCheck || 'No obvious conflict detected yet.'
+  }, [activeConflict, buyerName, identifier, sellerName, assetType, assetOwners])
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -83,6 +102,14 @@ function App() {
     const conflictRoom = rooms.find(
       (room) => room.assetType === assetType && room.identifier.trim().toUpperCase() === normalized,
     )
+
+    const key = `${assetType}-${identifier.trim().toLowerCase()}`
+    const currentOwner = assetOwners[key]
+    const isFraud = currentOwner ? currentOwner !== sellerName.trim() : false
+
+    if (isFraud) {
+      setMessage('Possible fraud detected: Seller is not the current owner of this asset.')
+    }
 
     const newRoom: DealRoom = {
       id: crypto.randomUUID(),
@@ -105,10 +132,14 @@ function App() {
       inspectionNotes,
       paymentMilestone,
       conflict: conflictRoom ? `Duplicate asset room exists (${conflictRoom.id})` : undefined,
+      fraud: isFraud,
     }
 
     setRooms((prev) => [newRoom, ...prev])
-    setMessage(`Deal room created for ${newRoom.title}. Invite link: ${window.location.origin}/room/${newRoom.id}`)
+    if (!isFraud) {
+      setAssetOwners((prev) => ({ ...prev, [key]: buyerName.trim() }))
+    }
+    setMessage(isFraud ? 'Deal room created with fraud flag.' : `Deal room created for ${newRoom.title}. Invite link: ${window.location.origin}/room/${newRoom.id}`)
   }
 
   return (
@@ -253,6 +284,7 @@ function App() {
                     <p><strong>Seller:</strong> {room.sellerName}</p>
                     <p><strong>Created:</strong> {new Date(room.createdAt).toLocaleString()}</p>
                     {room.conflict ? <p className="danger">{room.conflict}</p> : <p className="fine">No duplicate room found</p>}
+                    {room.fraud ? <p className="danger">Fraud flag: Seller not current owner</p> : null}
                   </article>
                 )
               })}

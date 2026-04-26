@@ -18,4 +18,5 @@ export interface DealRoom {
   inspectionNotes: boolean
   paymentMilestone: boolean
   conflict?: string
+  fraud?: boolean
 }
