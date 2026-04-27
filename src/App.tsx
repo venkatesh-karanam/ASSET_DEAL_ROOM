@@ -24,10 +24,15 @@ function getInitialRooms(): DealRoom[] {
   }
 }
 
-function getInitialOwners(): Record<string, string> {
+interface OwnershipRecord {
+  currentOwner: string
+  previousOwner?: string
+}
+
+function getInitialOwners(): Record<string, OwnershipRecord> {
   try {
     const raw = window.localStorage.getItem(ownersKey)
-    return raw ? (JSON.parse(raw) as Record<string, string>) : {}
+    return raw ? (JSON.parse(raw) as Record<string, OwnershipRecord>) : {}
   } catch {
     return {}
   }
@@ -52,7 +57,7 @@ function getRiskStatus(room: DealRoom): { status: string; color: string } {
 
 function App() {
   const [rooms, setRooms] = useState<DealRoom[]>(getInitialRooms)
-  const [assetOwners, setAssetOwners] = useState<Record<string, string>>(getInitialOwners)
+  const [assetOwners, setAssetOwners] = useState<Record<string, OwnershipRecord>>(getInitialOwners)
   const [assetType, setAssetType] = useState<AssetType>('land')
   const [identifier, setIdentifier] = useState('')
   const [title, setTitle] = useState('')
@@ -83,7 +88,9 @@ function App() {
   }, [assetType, identifier, rooms])
 
   const activeOwnerKey = `${assetType}-${identifier.trim().toLowerCase()}`
-  const currentOwner = assetOwners[activeOwnerKey]
+  const ownershipRecord = assetOwners[activeOwnerKey]
+  const currentOwner = ownershipRecord?.currentOwner
+  const previousOwner = ownershipRecord?.previousOwner
   const riskSummary = useMemo(() => {
     if (!identifier || !buyerName || !sellerName) return 'Complete the form to see risk status.'
     const conflict = activeConflict ? 'Conflict detected: duplicate asset room exists.' : ''
@@ -106,7 +113,7 @@ function App() {
     )
 
     const key = `${assetType}-${identifier.trim().toLowerCase()}`
-    const currentOwner = assetOwners[key]
+    const currentOwner = assetOwners[key]?.currentOwner
     const isFraud = currentOwner ? currentOwner !== normalizedSeller : false
 
     if (isFraud) {
@@ -140,7 +147,7 @@ function App() {
 
     setRooms((prev) => [newRoom, ...prev])
     if (!isFraud && !currentOwner) {
-      setAssetOwners((prev) => ({ ...prev, [key]: normalizedSeller }))
+      setAssetOwners((prev) => ({ ...prev, [key]: { currentOwner: normalizedSeller } }))
     }
     setMessage(isFraud ? 'Deal room created with fraud flag.' : `Deal room created for ${newRoom.title}. Invite link: ${window.location.origin}/room/${newRoom.id}`)
   }
@@ -150,11 +157,19 @@ function App() {
     if (room) {
       setRooms((prev) => prev.map((r) => (r.id === id ? { ...r, completed: true } : r)))
       const key = `${room.assetType}-${room.identifier.toLowerCase()}`
-      const currentOwner = assetOwners[key]
+      const ownershipRecord = assetOwners[key]
+      const currentOwnerName = ownershipRecord?.currentOwner
       const sellerNameNormalized = room.sellerName.trim()
+      const buyerNameNormalized = room.buyerName.trim()
 
-      if (!room.fraud && (!currentOwner || currentOwner === sellerNameNormalized)) {
-        setAssetOwners((prev) => ({ ...prev, [key]: room.buyerName.trim() }))
+      if (!room.fraud && (!currentOwnerName || currentOwnerName === sellerNameNormalized)) {
+        setAssetOwners((prev) => ({ 
+          ...prev, 
+          [key]: { 
+            currentOwner: buyerNameNormalized,
+            previousOwner: currentOwnerName || sellerNameNormalized
+          } 
+        }))
       }
     }
   }
@@ -275,7 +290,8 @@ function App() {
           <div className="status-card">
             <strong>Conflict check</strong>
             <p>{riskSummary}</p>
-            <p><strong>Recorded current owner:</strong> {currentOwner || 'Unknown'}</p>
+            <p><strong>Recorded current owner:</strong> {currentOwner || 'Not yet registered'}</p>
+            {previousOwner && <p><strong>Previous owner:</strong> {previousOwner}</p>}
             {activeConflict && <p className="danger">{activeConflict}</p>}
           </div>
         </section>
@@ -288,6 +304,8 @@ function App() {
             <div className="room-grid">
               {rooms.map((room) => {
                 const risk = getRiskStatus(room)
+                const assetKey = `${room.assetType}-${room.identifier.toLowerCase()}`
+                const ownership = assetOwners[assetKey]
                 return (
                   <article key={room.id} className="room-card">
                     <div className="room-header">
@@ -302,6 +320,12 @@ function App() {
                     <p><strong>Seller:</strong> {room.sellerName}</p>
                     <p><strong>Created:</strong> {new Date(room.createdAt).toLocaleString()}</p>
                     <p><strong>Status:</strong> {room.completed ? 'Completed' : 'Pending'}</p>
+                    {room.completed && ownership && (
+                      <>
+                        <p><strong>Current owner:</strong> {ownership.currentOwner}</p>
+                        {ownership.previousOwner && <p><strong>Previous owner:</strong> {ownership.previousOwner}</p>}
+                      </>
+                    )}
                     {room.conflict ? <p className="danger">{room.conflict}</p> : <p className="fine">No duplicate room found</p>}
                     {room.fraud ? <p className="danger">Fraud flag: Seller not current owner</p> : null}
                     {!room.completed && <button onClick={() => markCompleted(room.id)}>Mark as Completed</button>}
