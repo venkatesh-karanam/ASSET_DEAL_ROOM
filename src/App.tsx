@@ -82,11 +82,11 @@ function App() {
     return existing ? `Active room created on ${new Date(existing.createdAt).toLocaleString()} for ${existing.assetType === 'land' ? 'land' : 'car'}.` : undefined
   }, [assetType, identifier, rooms])
 
+  const activeOwnerKey = `${assetType}-${identifier.trim().toLowerCase()}`
+  const currentOwner = assetOwners[activeOwnerKey]
   const riskSummary = useMemo(() => {
     if (!identifier || !buyerName || !sellerName) return 'Complete the form to see risk status.'
     const conflict = activeConflict ? 'Conflict detected: duplicate asset room exists.' : ''
-    const key = `${assetType}-${identifier.trim().toLowerCase()}`
-    const currentOwner = assetOwners[key]
     const fraudCheck = currentOwner && currentOwner !== sellerName.trim() ? 'Fraud risk: Seller is not the current owner.' : ''
     return conflict || fraudCheck || 'No obvious conflict detected yet.'
   }, [activeConflict, buyerName, identifier, sellerName, assetType, assetOwners])
@@ -99,13 +99,15 @@ function App() {
     }
 
     const normalized = identifier.trim().toUpperCase()
+    const normalizedSeller = sellerName.trim()
+    const normalizedBuyer = buyerName.trim()
     const conflictRoom = rooms.find(
       (room) => room.assetType === assetType && room.identifier.trim().toUpperCase() === normalized,
     )
 
     const key = `${assetType}-${identifier.trim().toLowerCase()}`
     const currentOwner = assetOwners[key]
-    const isFraud = currentOwner ? currentOwner !== sellerName.trim() : false
+    const isFraud = currentOwner ? currentOwner !== normalizedSeller : false
 
     if (isFraud) {
       setMessage('Possible fraud detected: Seller is not the current owner of this asset.')
@@ -117,8 +119,8 @@ function App() {
       identifier: normalized,
       title: title.trim() || `${assetType === 'land' ? 'Title' : 'Reg No.'} ${normalized}`,
       createdAt: new Date().toISOString(),
-      buyerName: buyerName.trim(),
-      sellerName: sellerName.trim(),
+      buyerName: normalizedBuyer,
+      sellerName: normalizedSeller,
       sellerPhone: sellerPhone.trim(),
       officialChecks: {
         ardhiSearch: assetType === 'land' ? checked.ardhiSearch : false,
@@ -133,13 +135,28 @@ function App() {
       paymentMilestone,
       conflict: conflictRoom ? `Duplicate asset room exists (${conflictRoom.id})` : undefined,
       fraud: isFraud,
+      completed: false,
     }
 
     setRooms((prev) => [newRoom, ...prev])
-    if (!isFraud) {
-      setAssetOwners((prev) => ({ ...prev, [key]: buyerName.trim() }))
+    if (!isFraud && !currentOwner) {
+      setAssetOwners((prev) => ({ ...prev, [key]: normalizedSeller }))
     }
     setMessage(isFraud ? 'Deal room created with fraud flag.' : `Deal room created for ${newRoom.title}. Invite link: ${window.location.origin}/room/${newRoom.id}`)
+  }
+
+  const markCompleted = (id: string) => {
+    const room = rooms.find((r) => r.id === id)
+    if (room) {
+      setRooms((prev) => prev.map((r) => (r.id === id ? { ...r, completed: true } : r)))
+      const key = `${room.assetType}-${room.identifier.toLowerCase()}`
+      const currentOwner = assetOwners[key]
+      const sellerNameNormalized = room.sellerName.trim()
+
+      if (!room.fraud && (!currentOwner || currentOwner === sellerNameNormalized)) {
+        setAssetOwners((prev) => ({ ...prev, [key]: room.buyerName.trim() }))
+      }
+    }
   }
 
   return (
@@ -148,7 +165,7 @@ function App() {
         <div>
           <span className="eyebrow">DealRoom KE</span>
           <h1>A Kenyan pre-payment verification room for land & vehicles</h1>
-          <p>Create one deal room per asset, upload evidence, and flag duplicate asset conflicts before payment.</p>
+          <p>Create one deal room per asset per person, upload evidence, and flag duplicate asset conflicts before payment.</p>
         </div>
       </header>
 
@@ -258,6 +275,7 @@ function App() {
           <div className="status-card">
             <strong>Conflict check</strong>
             <p>{riskSummary}</p>
+            <p><strong>Recorded current owner:</strong> {currentOwner || 'Unknown'}</p>
             {activeConflict && <p className="danger">{activeConflict}</p>}
           </div>
         </section>
@@ -283,8 +301,10 @@ function App() {
                     <p><strong>Buyer:</strong> {room.buyerName}</p>
                     <p><strong>Seller:</strong> {room.sellerName}</p>
                     <p><strong>Created:</strong> {new Date(room.createdAt).toLocaleString()}</p>
+                    <p><strong>Status:</strong> {room.completed ? 'Completed' : 'Pending'}</p>
                     {room.conflict ? <p className="danger">{room.conflict}</p> : <p className="fine">No duplicate room found</p>}
                     {room.fraud ? <p className="danger">Fraud flag: Seller not current owner</p> : null}
+                    {!room.completed && <button onClick={() => markCompleted(room.id)}>Mark as Completed</button>}
                   </article>
                 )
               })}

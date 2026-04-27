@@ -163,6 +163,7 @@ function App() {
       inspectionNotes,
       paymentMilestone,
       conflict: conflictRoom ? `Duplicate asset room exists (${conflictRoom.id})` : undefined,
+      completed: false,
     }
 
     setRooms((prev) => [newRoom, ...prev])
