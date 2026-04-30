@@ -92,7 +92,14 @@ export const fraudDetectionEngine = {
     const { score, indicators } = fraudDetectionEngine.calculateRiskScore(dealRoom, allDealRooms)
 
     // Update deal room risk score
-    db.updateDealRoom(dealRoom.id, { riskScore: score })
+    const activeDuplicateIds = allDealRooms
+      .filter(r => r.assetType === dealRoom.assetType && r.identifier === dealRoom.identifier && r.id !== dealRoom.id && r.status !== 'rejected')
+      .map(r => r.id)
+
+    db.updateDealRoom(dealRoom.id, {
+      riskScore: score,
+      conflictWith: activeDuplicateIds.length > 0 ? activeDuplicateIds : undefined,
+    })
 
     // Create risk alerts for high-risk indicators
     indicators.forEach(indicator => {

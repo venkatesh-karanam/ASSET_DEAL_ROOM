@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import { db, User } from '../models/database'
+import { config } from '../config'
 
 export interface AuthRequest extends Request {
   user?: User
@@ -15,7 +16,7 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
 
   const token = authHeader.substring(7)
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string }
+    const decoded = jwt.verify(token, config.jwtSecret) as { userId: string }
     const user = db.findUserById(decoded.userId)
     if (!user || !user.active) {
       return res.status(401).json({ error: 'User not found or inactive' })
@@ -41,5 +42,5 @@ export const roleMiddleware = (...roles: string[]) => {
 }
 
 export const generateToken = (userId: string): string => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET || 'secret', { expiresIn: '24h' })
+  return jwt.sign({ userId }, config.jwtSecret, { expiresIn: '24h' })
 }

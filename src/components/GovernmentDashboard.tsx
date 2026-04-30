@@ -110,7 +110,7 @@ export const GovernmentDashboard: React.FC<GovDashboardProps> = ({ token, role, 
         )}
       </main>
 
-      <style jsx>{`
+      <style>{`
         .gov-dashboard {
           min-height: 100vh;
           background: #f5f5f5;

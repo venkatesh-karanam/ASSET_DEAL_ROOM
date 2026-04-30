@@ -1,8 +1,16 @@
 import { Router, Response } from 'express'
-import { db, TransactionStatus } from '../models/database'
+import { db } from '../models/database'
 import { authMiddleware, roleMiddleware, generateToken, AuthRequest } from '../middleware/auth'
 import { auditLogger } from '../services/auditService'
 import { fraudDetectionEngine } from '../services/fraudDetectionService'
+import {
+  isRole,
+  isStatus,
+  normalizeAmount,
+  normalizeAssetType,
+  normalizeEmail,
+  normalizeRequiredString,
+} from '../validation'
 import bcrypt from 'bcrypt'
 
 const router = Router()
@@ -10,9 +18,13 @@ const router = Router()
 // Auth Routes
 router.post('/auth/register', async (req: AuthRequest, res: Response) => {
   try {
-    const { email, password, role, agency, huduma, bvn } = req.body
+    const email = normalizeEmail(req.body.email)
+    const password = normalizeRequiredString(req.body.password)
+    const agency = normalizeRequiredString(req.body.agency)
+    const { huduma, bvn } = req.body
+    const role = req.body.role
 
-    if (!email || !password || !role || !agency) {
+    if (!email || !password || !isRole(role) || !agency) {
       return res.status(400).json({ error: 'Missing required fields' })
     }
 
@@ -51,7 +63,8 @@ router.post('/auth/register', async (req: AuthRequest, res: Response) => {
 
 router.post('/auth/login', async (req: AuthRequest, res: Response) => {
   try {
-    const { email, password } = req.body
+    const email = normalizeEmail(req.body.email)
+    const password = normalizeRequiredString(req.body.password)
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password required' })
     }
@@ -67,12 +80,7 @@ router.post('/auth/login', async (req: AuthRequest, res: Response) => {
     }
 
     const token = generateToken(user.id)
-    db.createUser({
-      ...user,
-      id: user.id,
-      lastLogin: new Date(),
-      active: true,
-    })
+    db.updateUser(user.id, { lastLogin: new Date(), active: true })
 
     auditLogger.log({
       userId: user.id,
@@ -96,19 +104,37 @@ router.post('/deal-rooms', authMiddleware, async (req: AuthRequest, res: Respons
   try {
     if (!req.user) return res.status(401).json({ error: 'Not authenticated' })
 
-    const { assetType, identifier, title, buyerName, sellerName, amount } = req.body
+    const assetType = normalizeAssetType(req.body.assetType)
+    const identifier = normalizeRequiredString(req.body.identifier)
+    const buyerName = normalizeRequiredString(req.body.buyerName)
+    const sellerName = normalizeRequiredString(req.body.sellerName)
+    const sellerPhone = normalizeRequiredString(req.body.sellerPhone)
+    const title = normalizeRequiredString(req.body.title)
+    const amount = normalizeAmount(req.body.amount)
+
+    if (!assetType || !identifier || !buyerName || !sellerName) {
+      return res.status(400).json({ error: 'assetType, identifier, buyerName and sellerName are required' })
+    }
 
     const dealRoom = db.createDealRoom({
       assetType,
       identifier: identifier.toUpperCase(),
       title: title || `${assetType} ${identifier}`,
       buyerName,
+      sellerName,
+      sellerPhone,
       sellerId: req.user.id,
       buyerId: req.user.id, // In real app, would be separate
       status: 'pending',
       fraud: false,
       riskScore: 0,
       amount,
+      officialChecks: typeof req.body.officialChecks === 'object' && req.body.officialChecks !== null ? req.body.officialChecks : {},
+      identityProof: Boolean(req.body.identityProof),
+      authorityProof: Boolean(req.body.authorityProof),
+      supportingDocs: Boolean(req.body.supportingDocs),
+      inspectionNotes: Boolean(req.body.inspectionNotes),
+      paymentMilestone: Boolean(req.body.paymentMilestone),
     })
 
     // Run fraud detection
@@ -126,7 +152,7 @@ router.post('/deal-rooms', authMiddleware, async (req: AuthRequest, res: Respons
       userAgent: req.get('user-agent'),
     })
 
-    res.json(dealRoom)
+    res.json(db.getDealRoom(dealRoom.id) || dealRoom)
   } catch (error) {
     res.status(500).json({ error: 'Failed to create deal room' })
   }
@@ -174,8 +200,12 @@ router.put('/deal-rooms/:id/status', authMiddleware, roleMiddleware('police', 'l
   if (!req.user) return res.status(401).json({ error: 'Not authenticated' })
 
   const { status } = req.body
+  if (!isStatus(status)) {
+    return res.status(400).json({ error: 'Invalid transaction status' })
+  }
+
   const dealRoom = db.updateDealRoom(req.params.id, {
-    status: status as TransactionStatus,
+    status,
     completedAt: status === 'completed' ? new Date() : undefined,
   })
 
@@ -206,7 +236,7 @@ router.get('/analytics/fraud-summary', authMiddleware, roleMiddleware('police', 
   res.json({
     totalTransactions: allRooms.length,
     flaggedCount: flaggedRooms.length,
-    flagRate: (flaggedRooms.length / allRooms.length) * 100,
+    flagRate: allRooms.length > 0 ? (flaggedRooms.length / allRooms.length) * 100 : 0,
     highSeverityAlerts: alerts.length,
     byType: {
       fraud: flaggedRooms.filter(r => r.fraud).length,

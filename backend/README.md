@@ -1,250 +1,72 @@
-# Asset Deal Room - Government Edition Backend
+# Asset Deal Room Backend
 
-A secure, enterprise-grade backend for Kenya's asset transaction verification system with multi-agency fraud detection, audit logging, and intelligence analytics.
+Express + TypeScript API for the DealRoom KE MVP.
 
-## 🏗️ Architecture
+## Features
 
-```
-Government Asset Deal Room
-├── Role-Based Access Control (RBAC)
-│   ├── Police (Fraud investigation)
-│   ├── Lands Ministry (Property verification)
-│   ├── NTSA (Vehicle registration)
-│   ├── KRA (Identity & tax verification)
-│   └── Intelligence Services (Pattern analysis)
-├── Fraud Detection Engine
-│   ├── Risk scoring algorithm
-│   ├── Duplicate sale detection
-│   ├── Rapid flipping detection
-│   ├── Money laundering pattern analysis
-│   └── Sanctions screening
-├── Immutable Audit Trail
-│   ├── Timestamp logging
-│   ├── User action tracking
-│   ├── IP/device fingerprinting
-│   └── Change history
-└── Government API Integrations
-    ├── Ardhisasa (Land verification)
-    ├── NTSA (Vehicle verification)
-    ├── KRA (Identity verification)
-    ├── M-Pesa (Payment verification)
-    └── NAFIS (Police fraud database)
-```
+- JWT login/register flow with bcrypt password hashes.
+- Demo users for citizen and agency roles.
+- Deal-room creation and listing.
+- Role-based access for government analytics and status updates.
+- Duplicate asset detection and risk alerts.
+- In-memory audit log for demo usage.
 
-## 🚀 Quick Start
-
-### Prerequisites
-- Node.js 18+
-- npm or yarn
-
-### Installation
+## Setup
 
 ```bash
-cd backend
 npm install
-cp .env.example .env
+copy .env.example .env
 npm run dev
 ```
 
-Server runs on `http://localhost:5000`
+Default server URL:
 
-## 📋 API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - Register new government user
-- `POST /api/auth/login` - Login and get JWT token
-
-### Deal Rooms
-- `GET /api/deal-rooms` - List all deal rooms (filtered by role)
-- `POST /api/deal-rooms` - Create new deal room
-- `GET /api/deal-rooms/:id` - Get deal room with full audit trail
-- `PUT /api/deal-rooms/:id/status` - Update transaction status
-
-### Analytics & Intelligence
-- `GET /api/analytics/fraud-summary` - Fraud statistics by type
-- `GET /api/analytics/asset-trace` - Track asset ownership history
-- `GET /api/analytics/high-risk-sellers` - Identify suspicious sellers
-- `GET /api/audit-logs` - View immutable transaction logs
-
-## 🔐 Role-Based Features
-
-### Police (KPS)
-- View fraud investigation dashboard
-- Access high-risk seller profiles
-- Generate fraud reports
-- Coordinate with other agencies
-
-### Lands Ministry
-- Verify land title ownership
-- Track property transfers
-- Generate property reports
-- Monitor for title fraud
-
-### NTSA
-- Verify vehicle registrations
-- Check stolen vehicle database
-- Monitor rapid flipping patterns
-- Generate vehicle intelligence reports
-
-### KRA
-- Verify seller/buyer identities (Huduma)
-- Check sanctions lists
-- Verify BVN information
-- Monitor tax compliance
-
-### Intelligence Services
-- Access all data across agencies
-- Generate comprehensive intelligence reports
-- Identify organized fraud networks
-- Monitor money laundering patterns
-
-## 🛡️ Security Features
-
-✅ **JWT-based Authentication**
-- Token expiration: 24 hours
-- Secure password hashing with bcrypt
-
-✅ **Immutable Audit Trail**
-- Every action logged with timestamp
-- IP address & user agent tracking
-- Change history maintained
-- Tamper-evident logging
-
-✅ **Fraud Detection Engine**
-- Risk scoring (0-100)
-- 5+ fraud pattern detectors
-- Real-time alert generation
-- Machine learning ready
-
-✅ **Access Control**
-- Role-based endpoints
-- Resource ownership validation
-- Cross-agency data sharing rules
-
-## 📊 Fraud Detection Patterns
-
-| Pattern | Severity | Description |
-|---------|----------|-------------|
-| Duplicate Sale | Critical | Selling same asset twice |
-| Rapid Flipping | High | Multiple quick buy-sell cycles |
-| Fraud Flag | Critical | Seller not registered owner |
-| High Value Unverified | High | Large transaction without verification |
-| Sanctions Match | Critical | Participant on watchlist |
-| Money Laundering | High | Suspicious transaction patterns |
-
-## 🔗 Government API Integration
-
-### Ardhisasa Integration
-```typescript
-// Land title verification
-const result = await ardhisasaIntegration.verifyLandTitle('LR.12345/678')
-// Returns: { verified, owner, data }
+```text
+http://localhost:5000
 ```
 
-### NTSA Integration
-```typescript
-// Vehicle registration verification
-const result = await ntsaIntegration.verifyVehicleRegistration('KCA 123 A')
-// Checks: Registration, stolen status, ownership
+Health check:
+
+```text
+GET /health
 ```
 
-### KRA Integration
-```typescript
-// Identity verification
-const result = await kraIntegration.verifyIdentity('12345678', 'BVN123')
-// Checks: Identity, tax compliance, sanctions
+## Environment
+
+```text
+PORT=5000
+JWT_SECRET=replace-with-a-long-random-secret
+CORS_ORIGIN=http://localhost:5173
 ```
 
-### M-Pesa Integration
-```typescript
-// Payment verification
-const result = await mpesaIntegration.verifyPayment('REF123', 50000)
-// Returns: Transaction details and status
+## Main API routes
+
+```text
+POST /api/auth/register
+POST /api/auth/login
+GET  /api/deal-rooms
+POST /api/deal-rooms
+GET  /api/deal-rooms/:id
+PUT  /api/deal-rooms/:id/status
+GET  /api/analytics/fraud-summary
+GET  /api/analytics/asset-trace
+GET  /api/analytics/high-risk-sellers
+GET  /api/audit-logs
 ```
 
-## 📝 Database Schema (In-Memory for Demo)
+## Demo credentials
 
-```typescript
-interface DealRoom {
-  id: string
-  assetType: 'land' | 'car'
-  identifier: string
-  buyerId: string
-  sellerId: string
-  status: TransactionStatus
-  riskScore: number
-  fraud: boolean
-  createdAt: Date
-  completedAt?: Date
-  amount?: number
-}
+All demo accounts use password `demo123`.
 
-interface AuditLog {
-  id: string
-  timestamp: Date
-  userId: string
-  agency: string
-  action: string
-  resourceId: string
-  ipAddress: string
-  userAgent: string
-  changes: Record<string, unknown>
-}
-
-interface RiskAlert {
-  id: string
-  dealRoomId: string
-  type: FraudType
-  severity: 'low' | 'medium' | 'high' | 'critical'
-  description: string
-  flaggedAt: Date
-}
+```text
+citizen@example.com
+police@kps.go.ke
+lands@lands.go.ke
+ntsa@ntsa.go.ke
+kra@kra.go.ke
+intelligence@intel.go.ke
 ```
 
-## 🧪 Testing Demo Credentials
+## Production gaps
 
-```
-Police:       police@kps.go.ke / demo123
-Lands:        lands@lands.go.ke / demo123
-NTSA:         ntsa@ntsa.go.ke / demo123
-KRA:          kra@kra.go.ke / demo123
-Intelligence: intelligence@intel.go.ke / demo123
-Citizen:      citizen@example.com / demo123
-```
-
-## 📚 Integration Flow
-
-1. **Citizen** creates deal room via citizen portal
-2. **Backend** runs fraud detection analysis
-3. **High-risk** alerts generated automatically
-4. **Government agencies** notified based on risk level
-5. **Police/Lands/NTSA/KRA** investigate in their dashboards
-6. **Intelligence** generates comprehensive reports
-7. **Audit trail** maintained throughout
-
-## 🚀 Production Deployment
-
-For production deployment:
-
-1. Replace mock APIs with real government API endpoints
-2. Switch to PostgreSQL or cloud database
-3. Implement rate limiting
-4. Add SSL/TLS encryption
-5. Configure email notifications for alerts
-6. Set up SMS alerts for high-risk transactions
-7. Implement 2FA for government users
-8. Add IP whitelisting for agencies
-
-## 📞 Support
-
-For integration with government APIs:
-- Ardhisasa: api-support@ardhisasa.go.ke
-- NTSA: integration@ntsa.go.ke
-- KRA: api@kra.go.ke
-- M-Pesa: developer@safaricom.co.ke
-
----
-
-**Version:** 1.0.0  
-**Last Updated:** 2026-04-27  
-**Status:** Production Ready
+This backend is still demo-grade. Before production, replace the in-memory database with persistent storage, add rate limiting, use real government/payment integrations, enforce stronger password and 2FA policies, and add automated tests.

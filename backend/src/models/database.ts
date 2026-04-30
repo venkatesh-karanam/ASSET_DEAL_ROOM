@@ -23,6 +23,8 @@ export interface DealRoom {
   identifier: string
   title: string
   buyerName: string
+  sellerName: string
+  sellerPhone?: string
   sellerId: string
   buyerId: string
   sellerHuduma?: string
@@ -36,6 +38,12 @@ export interface DealRoom {
   conflictWith?: string[]
   riskScore: number
   notes?: string
+  officialChecks?: Record<string, boolean>
+  identityProof?: boolean
+  authorityProof?: boolean
+  supportingDocs?: boolean
+  inspectionNotes?: boolean
+  paymentMilestone?: boolean
 }
 
 export interface OwnershipRecord {
@@ -58,8 +66,8 @@ export interface AuditLog {
   resourceType: string
   resourceId: string
   changes: Record<string, unknown>
-  ipAddress: string
-  userAgent: string
+  ipAddress?: string
+  userAgent?: string
 }
 
 export interface Verification {
@@ -120,6 +128,14 @@ export class Database {
 
   findUserById(id: string): User | undefined {
     return this.users.get(id)
+  }
+
+  updateUser(id: string, updates: Partial<User>): User | undefined {
+    const user = this.users.get(id)
+    if (!user) return undefined
+    const updated = { ...user, ...updates }
+    this.users.set(id, updated)
+    return updated
   }
 
   // Deal room operations

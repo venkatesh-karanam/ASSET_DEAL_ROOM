@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 
+const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+
 interface LoginProps {
   onLogin: (token: string, role: string) => void
 }
@@ -16,7 +18,7 @@ export const LoginPage: React.FC<LoginProps> = ({ onLogin }) => {
     setError('')
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(`${apiBaseUrl}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -74,7 +76,7 @@ export const LoginPage: React.FC<LoginProps> = ({ onLogin }) => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .login-page {
           display: flex;
           align-items: center;

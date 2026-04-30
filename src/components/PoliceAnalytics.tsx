@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 
+const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+
 interface FraudAnalytics {
   totalTransactions: number
   flaggedCount: number
@@ -32,10 +34,10 @@ export const PoliceAnalytics: React.FC<PoliceAnalyticsProps> = ({ token }) => {
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        const analyticsRes = await fetch('http://localhost:5000/api/analytics/fraud-summary', {
+        const analyticsRes = await fetch(`${apiBaseUrl}/analytics/fraud-summary`, {
           headers: { Authorization: `Bearer ${token}` },
         })
-        const sellersRes = await fetch('http://localhost:5000/api/analytics/high-risk-sellers', {
+        const sellersRes = await fetch(`${apiBaseUrl}/analytics/high-risk-sellers`, {
           headers: { Authorization: `Bearer ${token}` },
         })
 
@@ -115,7 +117,7 @@ export const PoliceAnalytics: React.FC<PoliceAnalyticsProps> = ({ token }) => {
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .police-dashboard {
           padding: 20px;
         }

@@ -3,6 +3,8 @@ import type { AssetType, DealRoom } from './types'
 
 const storageKey = 'dealroom-ke-rooms'
 const ownersKey = 'dealroom-ke-owners'
+const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const demoCitizen = { email: 'citizen@example.com', password: 'demo123' }
 const initialChecks = {
   ardhiSearch: false,
   ntsaRecord: false,
@@ -27,6 +29,62 @@ function getInitialRooms(): DealRoom[] {
 interface OwnershipRecord {
   currentOwner: string
   previousOwner?: string
+}
+
+interface BackendDealRoom {
+  id: string
+  assetType: AssetType
+  identifier: string
+  title: string
+  buyerName: string
+  sellerName: string
+  sellerPhone?: string
+  createdAt: string
+  status: 'pending' | 'completed' | 'flagged' | 'rejected'
+  fraud: boolean
+  conflictWith?: string[]
+  riskScore: number
+  officialChecks?: Record<string, boolean>
+  identityProof?: boolean
+  authorityProof?: boolean
+  supportingDocs?: boolean
+  inspectionNotes?: boolean
+  paymentMilestone?: boolean
+}
+
+function mapBackendRoom(room: BackendDealRoom): DealRoom {
+  return {
+    id: room.id,
+    assetType: room.assetType,
+    identifier: room.identifier,
+    title: room.title,
+    createdAt: room.createdAt,
+    buyerName: room.buyerName,
+    sellerName: room.sellerName,
+    sellerPhone: room.sellerPhone || '',
+    officialChecks: room.officialChecks || {},
+    identityProof: Boolean(room.identityProof),
+    authorityProof: Boolean(room.authorityProof),
+    supportingDocs: Boolean(room.supportingDocs),
+    inspectionNotes: Boolean(room.inspectionNotes),
+    paymentMilestone: Boolean(room.paymentMilestone),
+    conflict: room.conflictWith?.length ? `Duplicate asset room exists (${room.conflictWith.join(', ')})` : undefined,
+    fraud: room.fraud,
+    riskScore: room.riskScore,
+    status: room.status,
+    completed: room.status === 'completed',
+  }
+}
+
+async function loginDemoCitizen(): Promise<string> {
+  const response = await fetch(`${apiBaseUrl}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(demoCitizen),
+  })
+  if (!response.ok) throw new Error('Demo login failed')
+  const data = await response.json()
+  return data.token
 }
 
 function getInitialOwners(): Record<string, OwnershipRecord> {
@@ -71,10 +129,43 @@ function App() {
   const [inspectionNotes, setInspectionNotes] = useState(false)
   const [paymentMilestone, setPaymentMilestone] = useState(false)
   const [message, setMessage] = useState('')
+  const [backendToken, setBackendToken] = useState<string | null>(null)
+  const [backendOnline, setBackendOnline] = useState(false)
+  const [loadingRooms, setLoadingRooms] = useState(true)
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(rooms))
   }, [rooms])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadRoomsFromBackend() {
+      try {
+        const token = await loginDemoCitizen()
+        const response = await fetch(`${apiBaseUrl}/deal-rooms`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!response.ok) throw new Error('Failed to load deal rooms')
+        const data = (await response.json()) as BackendDealRoom[]
+        if (!active) return
+        setBackendToken(token)
+        setBackendOnline(true)
+        setRooms(data.map(mapBackendRoom))
+      } catch {
+        if (!active) return
+        setBackendOnline(false)
+        setMessage('Backend is not running, so this session is using browser storage.')
+      } finally {
+        if (active) setLoadingRooms(false)
+      }
+    }
+
+    loadRoomsFromBackend()
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     window.localStorage.setItem(ownersKey, JSON.stringify(assetOwners))
@@ -98,7 +189,7 @@ function App() {
     return conflict || fraudCheck || 'No obvious conflict detected yet.'
   }, [activeConflict, buyerName, identifier, sellerName, assetType, assetOwners])
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!identifier.trim() || !buyerName.trim() || !sellerName.trim() || !sellerPhone.trim()) {
       setMessage('Please fill in all required fields.')
@@ -120,7 +211,7 @@ function App() {
       setMessage('Possible fraud detected: Seller is not the current owner of this asset.')
     }
 
-    const newRoom: DealRoom = {
+    const draftRoom: DealRoom = {
       id: crypto.randomUUID(),
       assetType,
       identifier: normalized,
@@ -145,11 +236,47 @@ function App() {
       completed: false,
     }
 
-    setRooms((prev) => [newRoom, ...prev])
+    let newRoom = draftRoom
+    let createdOnBackend = false
+    if (backendToken) {
+      try {
+        const response = await fetch(`${apiBaseUrl}/deal-rooms`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${backendToken}`,
+          },
+          body: JSON.stringify({
+            assetType: draftRoom.assetType,
+            identifier: draftRoom.identifier,
+            title: draftRoom.title,
+            buyerName: draftRoom.buyerName,
+            sellerName: draftRoom.sellerName,
+            sellerPhone: draftRoom.sellerPhone,
+            officialChecks: draftRoom.officialChecks,
+            identityProof: draftRoom.identityProof,
+            authorityProof: draftRoom.authorityProof,
+            supportingDocs: draftRoom.supportingDocs,
+            inspectionNotes: draftRoom.inspectionNotes,
+            paymentMilestone: draftRoom.paymentMilestone,
+          }),
+        })
+        if (!response.ok) throw new Error('Failed to create room')
+        newRoom = mapBackendRoom(await response.json())
+        createdOnBackend = true
+        setBackendOnline(true)
+      } catch {
+        setBackendOnline(false)
+        setMessage('Could not reach the backend, so the room was saved locally.')
+      }
+    }
+
+    setRooms((prev) => [newRoom, ...prev.filter((room) => room.id !== newRoom.id)])
     if (!isFraud && !currentOwner) {
       setAssetOwners((prev) => ({ ...prev, [key]: { currentOwner: normalizedSeller } }))
     }
-    setMessage(isFraud ? 'Deal room created with fraud flag.' : `Deal room created for ${newRoom.title}. Invite link: ${window.location.origin}/room/${newRoom.id}`)
+    const storageMode = createdOnBackend ? 'Synced to backend.' : 'Saved locally.'
+    setMessage(isFraud ? `Deal room created with fraud flag. ${storageMode}` : `Deal room created for ${newRoom.title}. ${storageMode} Invite link: ${window.location.origin}/room/${newRoom.id}`)
   }
 
   const markCompleted = (id: string) => {
@@ -187,6 +314,7 @@ function App() {
       <main>
         <section className="panel">
           <h2>Create a new asset deal room</h2>
+          {loadingRooms && <div className="notice">Loading saved deal rooms...</div>}
           <form onSubmit={handleSubmit} className="form-grid">
             <label>
               Asset type

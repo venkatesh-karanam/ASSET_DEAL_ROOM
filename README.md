@@ -1,34 +1,69 @@
 # DealRoom KE
 
-A minimal Kenya asset deal room MVP for land and vehicles.
+A Kenya-focused asset deal room MVP for land and vehicle transactions. The app helps a buyer or agency create a transaction room, capture seller/buyer details, track verification evidence, and flag duplicate asset rooms before money changes hands.
 
-## Features
+## What is included
 
-- Create a transaction room for land or car assets
-- Detect duplicate active asset rooms by title or registration number
-- Guided verification checklist for buyer and seller evidence
-- Risk status banner: Safe / Caution / Do not pay yet
-- Local persistence with browser storage for a simple first-stage MVP
+- React + Vite frontend for the citizen deal room flow.
+- Optional government dashboard at `/?mode=gov`.
+- Express + TypeScript backend with demo JWT auth, role-based API access, audit logging, and fraud/risk scoring.
+- Browser-storage fallback in the frontend when the backend is not running.
 
 ## Run locally
 
-1. Install dependencies
+Install frontend dependencies:
 
 ```bash
 npm install
 ```
 
-2. Start dev server
+Install backend dependencies:
+
+```bash
+cd backend
+npm install
+```
+
+Create environment files:
+
+```bash
+copy .env.example .env
+copy backend\.env.example backend\.env
+```
+
+Start the backend:
+
+```bash
+cd backend
+npm run dev
+```
+
+Start the frontend from the repo root:
 
 ```bash
 npm run dev
 ```
 
-3. Open the displayed URL in your browser
+## Demo accounts
 
-## Next steps
+All demo accounts use password `demo123`.
 
-- Add backend storage and real authentication
-- Add file upload backend and document evidence bundles
-- Add official check workflows for Ardhisasa and NTSA
-- Add seller invitation links and admin review panel
+```text
+Citizen:      citizen@example.com
+Police:       police@kps.go.ke
+Lands:        lands@lands.go.ke
+NTSA:         ntsa@ntsa.go.ke
+KRA:          kra@kra.go.ke
+Intelligence: intelligence@intel.go.ke
+```
+
+## Important limitations
+
+- Backend data is currently in memory and resets when the server restarts.
+- Government integrations are mocked/stubbed and need real API credentials before production use.
+- File uploads are represented as checklist state, not actual document storage.
+- Production use needs a real database, rate limiting, stronger auth controls, and deployment hardening.
+
+## Recommended next build step
+
+Move the backend storage to PostgreSQL or SQLite with Prisma, then add tests around auth, deal-room creation, duplicate detection, and role-based access.

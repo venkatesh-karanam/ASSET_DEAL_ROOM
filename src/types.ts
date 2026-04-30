@@ -19,5 +19,7 @@ export interface DealRoom {
   paymentMilestone: boolean
   conflict?: string
   fraud?: boolean
+  riskScore?: number
+  status?: 'pending' | 'completed' | 'flagged' | 'rejected'
   completed: boolean
 }
