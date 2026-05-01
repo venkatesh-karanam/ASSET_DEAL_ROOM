@@ -1,4 +1,5 @@
 import axios from 'axios'
+import type { GovernmentVerificationResult } from '../models/database'
 
 // Ardhisasa Integration (Land Registry)
 export const ardhisasaIntegration = {
@@ -101,4 +102,41 @@ export const nafisIntegration = {
     console.log(`[NAFIS] Checking fraud history: ${huduma}`)
     return { hasFraudHistory: false, records: [] }
   },
+}
+
+export const verifyWithGovernment = async (
+  assetType: 'land' | 'car',
+  identifier: string,
+): Promise<GovernmentVerificationResult> => {
+  const normalized = identifier.trim().toUpperCase()
+  const hasCaveat = normalized.includes('CAVEAT') || normalized.includes('DISPUTE')
+  const hasEncumbrance = normalized.includes('ENC') || normalized.includes('LOAN')
+  const isBlocked = normalized.includes('STOLEN') || normalized.includes('FRAUD')
+
+  const registry = assetType === 'land' ? 'Ardhisasa' : 'NTSA'
+  const baseResult = assetType === 'land'
+    ? await ardhisasaIntegration.verifyLandTitle(normalized)
+    : await ntsaIntegration.verifyVehicleRegistration(normalized)
+
+  const caveats = hasCaveat ? ['Active caveat recorded against this asset'] : []
+  const encumbrances = hasEncumbrance ? ['Outstanding charge or lien requires clearance before transfer'] : []
+  const status = isBlocked ? 'blocked' : caveats.length > 0 || encumbrances.length > 0 ? 'caution' : 'clear'
+
+  return {
+    assetType,
+    identifier: normalized,
+    registry,
+    verified: status !== 'blocked' && baseResult.verified,
+    status,
+    owner: baseResult.owner,
+    reference: `${registry.toUpperCase()}-${Date.now()}`,
+    checkedAt: new Date(),
+    caveats,
+    encumbrances,
+    message: status === 'clear'
+      ? 'Mock registry check found no caveats or encumbrances.'
+      : status === 'caution'
+        ? 'Mock registry check found issues that require agency review.'
+        : 'Mock registry check blocked this transaction.',
+  }
 }

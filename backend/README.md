@@ -10,6 +10,8 @@ Express + TypeScript API for the DealRoom KE MVP.
 - Role-based access for government analytics and status updates.
 - Duplicate asset detection and risk alerts.
 - In-memory audit log for demo usage.
+- Mock Ardhisasa/NTSA verification through `POST /api/government/verify`.
+- Evidence document metadata captured with each deal room.
 
 ## Setup
 
@@ -44,6 +46,7 @@ CORS_ORIGIN=http://localhost:5173
 ```text
 POST /api/auth/register
 POST /api/auth/login
+POST /api/government/verify
 GET  /api/deal-rooms
 POST /api/deal-rooms
 GET  /api/deal-rooms/:id
@@ -69,4 +72,4 @@ intelligence@intel.go.ke
 
 ## Production gaps
 
-This backend is still demo-grade. Before production, replace the in-memory database with persistent storage, add rate limiting, use real government/payment integrations, enforce stronger password and 2FA policies, and add automated tests.
+This backend is still demo-grade. Before production, replace the in-memory database with Supabase, Firebase, or PostgreSQL; add encrypted document storage; add rate limiting; use real government/payment integrations; enforce stronger password and 2FA policies; add immutable audit-log hashing; and add automated tests.

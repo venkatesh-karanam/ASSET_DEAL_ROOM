@@ -39,11 +39,27 @@ export interface DealRoom {
   riskScore: number
   notes?: string
   officialChecks?: Record<string, boolean>
+  evidenceDocuments?: Record<string, string>
+  governmentVerification?: GovernmentVerificationResult
   identityProof?: boolean
   authorityProof?: boolean
   supportingDocs?: boolean
   inspectionNotes?: boolean
   paymentMilestone?: boolean
+}
+
+export interface GovernmentVerificationResult {
+  assetType: 'land' | 'car'
+  identifier: string
+  registry: 'Ardhisasa' | 'NTSA'
+  verified: boolean
+  status: 'clear' | 'caution' | 'blocked'
+  owner: string
+  reference: string
+  checkedAt: Date
+  caveats: string[]
+  encumbrances: string[]
+  message: string
 }
 
 export interface OwnershipRecord {

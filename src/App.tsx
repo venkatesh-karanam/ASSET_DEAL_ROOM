@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { AssetType, DealRoom } from './types'
+import type { AssetType, DealRoom, GovernmentVerification } from './types'
 
 const storageKey = 'dealroom-ke-rooms'
 const ownersKey = 'dealroom-ke-owners'
@@ -10,6 +10,15 @@ const initialChecks = {
   ntsaRecord: false,
   sellerId: false,
   sellerAuthority: false,
+}
+
+const initialEvidenceDocuments = {
+  registryCertificate: '',
+  sellerIdDocument: '',
+  sellerAuthorityDocument: '',
+  supportingDocument: '',
+  inspectionDocument: '',
+  paymentInstruction: '',
 }
 
 const assetLabels = {
@@ -50,6 +59,8 @@ interface BackendDealRoom {
   supportingDocs?: boolean
   inspectionNotes?: boolean
   paymentMilestone?: boolean
+  evidenceDocuments?: Record<string, string>
+  governmentVerification?: GovernmentVerification
 }
 
 function mapBackendRoom(room: BackendDealRoom): DealRoom {
@@ -63,6 +74,8 @@ function mapBackendRoom(room: BackendDealRoom): DealRoom {
     sellerName: room.sellerName,
     sellerPhone: room.sellerPhone || '',
     officialChecks: room.officialChecks || {},
+    evidenceDocuments: room.evidenceDocuments || {},
+    governmentVerification: room.governmentVerification,
     identityProof: Boolean(room.identityProof),
     authorityProof: Boolean(room.authorityProof),
     supportingDocs: Boolean(room.supportingDocs),
@@ -97,16 +110,33 @@ function getInitialOwners(): Record<string, OwnershipRecord> {
 }
 
 function getRiskStatus(room: DealRoom): { status: string; color: string } {
+  const verification = room.governmentVerification
+  const evidence = room.evidenceDocuments || {}
+  const hasRegistryEvidence = Boolean(evidence.registryCertificate)
+  const hasIdentityEvidence = Boolean(evidence.sellerIdDocument)
+  const hasAuthorityEvidence = Boolean(evidence.sellerAuthorityDocument)
+  const hasSupportingEvidence = Boolean(evidence.supportingDocument)
+  const hasInspectionEvidence = Boolean(evidence.inspectionDocument)
+  const hasPaymentEvidence = Boolean(evidence.paymentInstruction)
+
   if (
     room.fraud ||
     room.conflict ||
-    (!room.officialChecks.ardhiSearch && room.assetType === 'land') ||
-    (!room.officialChecks.ntsaRecord && room.assetType === 'car')
+    verification?.status === 'blocked' ||
+    !verification?.verified
   ) {
     return { status: 'Do not pay yet', color: 'var(--danger)' }
   }
 
-  if (!room.identityProof || !room.authorityProof || !room.supportingDocs || !room.inspectionNotes || !room.paymentMilestone) {
+  if (
+    verification.status !== 'clear' ||
+    !hasRegistryEvidence ||
+    !hasIdentityEvidence ||
+    !hasAuthorityEvidence ||
+    !hasSupportingEvidence ||
+    !hasInspectionEvidence ||
+    !hasPaymentEvidence
+  ) {
     return { status: 'Proceed with caution', color: 'var(--warning)' }
   }
 
@@ -123,6 +153,9 @@ function App() {
   const [sellerName, setSellerName] = useState('')
   const [sellerPhone, setSellerPhone] = useState('')
   const [checked, setChecked] = useState(initialChecks)
+  const [evidenceDocuments, setEvidenceDocuments] = useState(initialEvidenceDocuments)
+  const [governmentVerification, setGovernmentVerification] = useState<GovernmentVerification | null>(null)
+  const [verificationLoading, setVerificationLoading] = useState(false)
   const [identityProof, setIdentityProof] = useState(false)
   const [authorityProof, setAuthorityProof] = useState(false)
   const [supportingDocs, setSupportingDocs] = useState(false)
@@ -186,8 +219,68 @@ function App() {
     if (!identifier || !buyerName || !sellerName) return 'Complete the form to see risk status.'
     const conflict = activeConflict ? 'Conflict detected: duplicate asset room exists.' : ''
     const fraudCheck = currentOwner && currentOwner !== sellerName.trim() ? 'Fraud risk: Seller is not the current owner.' : ''
-    return conflict || fraudCheck || 'No obvious conflict detected yet.'
-  }, [activeConflict, buyerName, identifier, sellerName, assetType, assetOwners])
+    const registryCheck = governmentVerification
+      ? `${governmentVerification.registry} check: ${governmentVerification.message}`
+      : 'Run the mock government registry check before marking this deal safe.'
+    return conflict || fraudCheck || registryCheck
+  }, [activeConflict, buyerName, identifier, sellerName, currentOwner, governmentVerification])
+
+  const setEvidenceFile = (key: keyof typeof initialEvidenceDocuments, fileList: FileList | null) => {
+    setEvidenceDocuments((prev) => ({ ...prev, [key]: fileList?.[0]?.name || '' }))
+  }
+
+  const handleGovernmentVerification = async () => {
+    if (!identifier.trim()) {
+      setMessage('Enter the asset identifier before running government verification.')
+      return
+    }
+
+    setVerificationLoading(true)
+    try {
+      if (!backendToken) throw new Error('Backend unavailable')
+      const response = await fetch(`${apiBaseUrl}/government/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${backendToken}`,
+        },
+        body: JSON.stringify({ assetType, identifier }),
+      })
+      if (!response.ok) throw new Error('Verification failed')
+      const result = (await response.json()) as GovernmentVerification
+      setGovernmentVerification(result)
+      setMessage(`${result.registry} mock verification complete: ${result.message}`)
+    } catch {
+      const normalized = identifier.trim().toUpperCase()
+      const status = normalized.includes('STOLEN') || normalized.includes('FRAUD')
+        ? 'blocked'
+        : normalized.includes('CAVEAT') || normalized.includes('ENC') || normalized.includes('LOAN')
+          ? 'caution'
+          : 'clear'
+      const registry = assetType === 'land' ? 'Ardhisasa' : 'NTSA'
+      const localResult: GovernmentVerification = {
+        assetType,
+        identifier: normalized,
+        registry,
+        verified: status !== 'blocked',
+        status,
+        owner: 'Demo Registry Owner',
+        reference: `LOCAL-${Date.now()}`,
+        checkedAt: new Date().toISOString(),
+        caveats: status === 'caution' ? ['Demo caveat or charge requires agency review'] : [],
+        encumbrances: status === 'caution' ? ['Demo outstanding encumbrance'] : [],
+        message: status === 'clear'
+          ? 'Local mock check found no caveats or encumbrances.'
+          : status === 'caution'
+            ? 'Local mock check found issues that require review.'
+            : 'Local mock check blocked this transaction.',
+      }
+      setGovernmentVerification(localResult)
+      setMessage(`${registry} local mock verification complete: ${localResult.message}`)
+    } finally {
+      setVerificationLoading(false)
+    }
+  }
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -221,16 +314,18 @@ function App() {
       sellerName: normalizedSeller,
       sellerPhone: sellerPhone.trim(),
       officialChecks: {
-        ardhiSearch: assetType === 'land' ? checked.ardhiSearch : false,
-        ntsaRecord: assetType === 'car' ? checked.ntsaRecord : false,
-        sellerId: checked.sellerId,
-        sellerAuthority: checked.sellerAuthority,
+        ardhiSearch: assetType === 'land' ? governmentVerification?.verified === true : false,
+        ntsaRecord: assetType === 'car' ? governmentVerification?.verified === true : false,
+        sellerId: Boolean(evidenceDocuments.sellerIdDocument),
+        sellerAuthority: Boolean(evidenceDocuments.sellerAuthorityDocument),
       },
-      identityProof,
-      authorityProof,
-      supportingDocs,
-      inspectionNotes,
-      paymentMilestone,
+      evidenceDocuments,
+      governmentVerification: governmentVerification || undefined,
+      identityProof: Boolean(evidenceDocuments.sellerIdDocument),
+      authorityProof: Boolean(evidenceDocuments.sellerAuthorityDocument),
+      supportingDocs: Boolean(evidenceDocuments.supportingDocument),
+      inspectionNotes: Boolean(evidenceDocuments.inspectionDocument),
+      paymentMilestone: Boolean(evidenceDocuments.paymentInstruction),
       conflict: conflictRoom ? `Duplicate asset room exists (${conflictRoom.id})` : undefined,
       fraud: isFraud,
       completed: false,
@@ -254,6 +349,8 @@ function App() {
             sellerName: draftRoom.sellerName,
             sellerPhone: draftRoom.sellerPhone,
             officialChecks: draftRoom.officialChecks,
+            evidenceDocuments: draftRoom.evidenceDocuments,
+            governmentVerification: draftRoom.governmentVerification,
             identityProof: draftRoom.identityProof,
             authorityProof: draftRoom.authorityProof,
             supportingDocs: draftRoom.supportingDocs,
@@ -350,65 +447,53 @@ function App() {
             </label>
 
             <div className="checklist-card">
-              <h3>Official check workflow</h3>
-              {assetType === 'land' ? (
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={checked.ardhiSearch}
-                    onChange={(event) => setChecked({ ...checked, ardhiSearch: event.target.checked })}
-                  />
-                  Upload Ardhisasa search evidence
-                </label>
-              ) : (
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={checked.ntsaRecord}
-                    onChange={(event) => setChecked({ ...checked, ntsaRecord: event.target.checked })}
-                  />
-                  Upload NTSA/eCitizen record evidence
-                </label>
+              <h3>Mock government registry check</h3>
+              <button type="button" className="secondary" onClick={handleGovernmentVerification} disabled={verificationLoading}>
+                {verificationLoading ? 'Checking registry...' : `Verify with ${assetType === 'land' ? 'Ardhisasa' : 'NTSA'} mock API`}
+              </button>
+              {governmentVerification && (
+                <div className={`verification-result ${governmentVerification.status}`}>
+                  <strong>{governmentVerification.registry} status: {governmentVerification.status.toUpperCase()}</strong>
+                  <p>{governmentVerification.message}</p>
+                  <p><strong>Reference:</strong> {governmentVerification.reference}</p>
+                  <p><strong>Registry owner:</strong> {governmentVerification.owner}</p>
+                  {governmentVerification.caveats.length > 0 && <p><strong>Caveats:</strong> {governmentVerification.caveats.join(', ')}</p>}
+                  {governmentVerification.encumbrances.length > 0 && <p><strong>Encumbrances:</strong> {governmentVerification.encumbrances.join(', ')}</p>}
+                </div>
               )}
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={checked.sellerId}
-                  onChange={(event) => setChecked({ ...checked, sellerId: event.target.checked })}
-                />
-                Seller identity proof uploaded
-              </label>
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={checked.sellerAuthority}
-                  onChange={(event) => setChecked({ ...checked, sellerAuthority: event.target.checked })}
-                />
-                Seller authority proof uploaded
-              </label>
             </div>
 
             <div className="checklist-card">
-              <h3>Evidence checklist</h3>
-              <label className="checkbox-row">
-                <input type="checkbox" checked={identityProof} onChange={(event) => setIdentityProof(event.target.checked)} />
-                ID selfie match / identity proof collected
+              <h3>Evidence documents</h3>
+              <label>
+                {assetType === 'land' ? 'Upload Search Certificate (PDF)' : 'Upload NTSA/eCitizen Vehicle Record (PDF)'}
+                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('registryCertificate', event.target.files)} />
+                {evidenceDocuments.registryCertificate && <span className="file-name">{evidenceDocuments.registryCertificate}</span>}
               </label>
-              <label className="checkbox-row">
-                <input type="checkbox" checked={authorityProof} onChange={(event) => setAuthorityProof(event.target.checked)} />
-                Seller authority documents collected
+              <label>
+                Upload seller identity document
+                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('sellerIdDocument', event.target.files)} />
+                {evidenceDocuments.sellerIdDocument && <span className="file-name">{evidenceDocuments.sellerIdDocument}</span>}
               </label>
-              <label className="checkbox-row">
-                <input type="checkbox" checked={supportingDocs} onChange={(event) => setSupportingDocs(event.target.checked)} />
-                Supporting documents uploaded
+              <label>
+                Upload seller authority document
+                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('sellerAuthorityDocument', event.target.files)} />
+                {evidenceDocuments.sellerAuthorityDocument && <span className="file-name">{evidenceDocuments.sellerAuthorityDocument}</span>}
               </label>
-              <label className="checkbox-row">
-                <input type="checkbox" checked={inspectionNotes} onChange={(event) => setInspectionNotes(event.target.checked)} />
-                Inspection or vehicle condition notes completed
+              <label>
+                Upload supporting document bundle
+                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('supportingDocument', event.target.files)} />
+                {evidenceDocuments.supportingDocument && <span className="file-name">{evidenceDocuments.supportingDocument}</span>}
               </label>
-              <label className="checkbox-row">
-                <input type="checkbox" checked={paymentMilestone} onChange={(event) => setPaymentMilestone(event.target.checked)} />
-                Payment milestone and buyer instruction recorded
+              <label>
+                Upload inspection or condition report
+                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('inspectionDocument', event.target.files)} />
+                {evidenceDocuments.inspectionDocument && <span className="file-name">{evidenceDocuments.inspectionDocument}</span>}
+              </label>
+              <label>
+                Upload payment milestone instruction
+                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('paymentInstruction', event.target.files)} />
+                {evidenceDocuments.paymentInstruction && <span className="file-name">{evidenceDocuments.paymentInstruction}</span>}
               </label>
             </div>
 
@@ -448,6 +533,12 @@ function App() {
                     <p><strong>Seller:</strong> {room.sellerName}</p>
                     <p><strong>Created:</strong> {new Date(room.createdAt).toLocaleString()}</p>
                     <p><strong>Status:</strong> {room.completed ? 'Completed' : 'Pending'}</p>
+                    {room.governmentVerification && (
+                      <p><strong>Registry check:</strong> {room.governmentVerification.registry} / {room.governmentVerification.status}</p>
+                    )}
+                    {room.evidenceDocuments && (
+                      <p><strong>Evidence files:</strong> {Object.values(room.evidenceDocuments).filter(Boolean).length} uploaded</p>
+                    )}
                     {room.completed && ownership && (
                       <>
                         <p><strong>Current owner:</strong> {ownership.currentOwner}</p>

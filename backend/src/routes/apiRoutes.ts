@@ -3,6 +3,7 @@ import { db } from '../models/database'
 import { authMiddleware, roleMiddleware, generateToken, AuthRequest } from '../middleware/auth'
 import { auditLogger } from '../services/auditService'
 import { fraudDetectionEngine } from '../services/fraudDetectionService'
+import { verifyWithGovernment } from '../integrations/governmentApis'
 import {
   isRole,
   isStatus,
@@ -100,6 +101,33 @@ router.post('/auth/login', async (req: AuthRequest, res: Response) => {
 })
 
 // Deal Room Routes
+router.post('/government/verify', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const assetType = normalizeAssetType(req.body.assetType)
+    const identifier = normalizeRequiredString(req.body.identifier)
+
+    if (!assetType || !identifier) {
+      return res.status(400).json({ error: 'assetType and identifier are required' })
+    }
+
+    const result = await verifyWithGovernment(assetType, identifier)
+    auditLogger.log({
+      userId: req.user?.id || 'anonymous',
+      agency: req.user?.agency || 'Citizen',
+      action: 'government_verification_checked',
+      resourceType: 'asset',
+      resourceId: result.identifier,
+      changes: result as unknown as Record<string, unknown>,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+    })
+
+    res.json(result)
+  } catch (error) {
+    res.status(500).json({ error: 'Government verification failed' })
+  }
+})
+
 router.post('/deal-rooms', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Not authenticated' })
@@ -130,6 +158,8 @@ router.post('/deal-rooms', authMiddleware, async (req: AuthRequest, res: Respons
       riskScore: 0,
       amount,
       officialChecks: typeof req.body.officialChecks === 'object' && req.body.officialChecks !== null ? req.body.officialChecks : {},
+      evidenceDocuments: typeof req.body.evidenceDocuments === 'object' && req.body.evidenceDocuments !== null ? req.body.evidenceDocuments : {},
+      governmentVerification: typeof req.body.governmentVerification === 'object' && req.body.governmentVerification !== null ? req.body.governmentVerification : undefined,
       identityProof: Boolean(req.body.identityProof),
       authorityProof: Boolean(req.body.authorityProof),
       supportingDocs: Boolean(req.body.supportingDocs),

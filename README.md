@@ -8,6 +8,8 @@ A Kenya-focused asset deal room MVP for land and vehicle transactions. The app h
 - Optional government dashboard at `/?mode=gov`.
 - Express + TypeScript backend with demo JWT auth, role-based API access, audit logging, and fraud/risk scoring.
 - Browser-storage fallback in the frontend when the backend is not running.
+- Evidence-based verification inputs for registry certificates, seller identity, authority documents, supporting documents, inspection reports, and payment instructions.
+- Mock Ardhisasa/NTSA verification flow that simulates caveat, encumbrance, and blocked-asset checks before a deal can be marked safe.
 
 ## Run locally
 
@@ -61,9 +63,16 @@ Intelligence: intelligence@intel.go.ke
 
 - Backend data is currently in memory and resets when the server restarts.
 - Government integrations are mocked/stubbed and need real API credentials before production use.
-- File uploads are represented as checklist state, not actual document storage.
+- File uploads currently store document metadata for demo purposes; production needs encrypted object storage.
 - Production use needs a real database, rate limiting, stronger auth controls, and deployment hardening.
 
-## Recommended next build step
+## Phase 2 Roadmap (Scalability & Security)
 
-Move the backend storage to PostgreSQL or SQLite with Prisma, then add tests around auth, deal-room creation, duplicate detection, and role-based access.
+- **Secure Persistence:** Replace in-memory/browser fallback storage with Supabase, Firebase, or PostgreSQL so every transaction has a durable audit trail.
+- **Transactions Table:** Store title or registration number, buyer ID, seller ID, registry verification status, evidence document references, risk score, and audit hash.
+- **Data Sovereignty:** Implement ODP-compliant data encryption for citizen documents and restrict storage to approved regions.
+- **Identity Integration:** Integrate with IPRS (Integrated Population Registration System) for KYC and citizen identity checks.
+- **Registry Integration:** Replace the mock `verifyWithGovernment(assetId)` flow with approved Ardhisasa and NTSA APIs.
+- **Integrity Engine:** Add blockchain-inspired immutable audit logs to prevent record tampering.
+- **Deployment:** Deploy the frontend to Vercel or Netlify and host the API on a secure managed platform for phone-ready stakeholder demos.
+- **Clean Code Standards:** Replace the current TypeScript lint script with ESLint rules and CI checks before formal government review.
