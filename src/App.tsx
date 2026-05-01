@@ -36,34 +36,6 @@ const statusDescriptions = {
   car: 'A room is safe only after the NTSA check is clear and all evidence documents are attached.',
 }
 
-const pitchSections = [
-  {
-    title: 'The Crisis',
-    focus: 'Land and vehicle fraud exposes Kenyans to billions in losses, duplicated sales, forged ownership documents, and court disputes that can drag on for 10 years.',
-    points: ['Fraud is detected too late, usually after payment.', 'Buyers lack one trusted pre-payment verification room.', 'Courts inherit disputes that could have been stopped at the registry check stage.'],
-  },
-  {
-    title: 'The Integration',
-    focus: 'DealRoom KE is designed to connect to eCitizen, NTSA, and Ardhisasa APIs so every asset can be checked before funds are released.',
-    points: ['Ardhisasa checks land title status, caveats, and encumbrances.', 'NTSA checks vehicle registration, owner record, and stolen-vehicle flags.', 'eCitizen/IPRS can support identity and KYC confirmation.'],
-  },
-  {
-    title: 'The AI Shield',
-    focus: 'The risk score turns registry data, evidence completeness, and transaction behavior into a clear Safe, Caution, or Do not pay yet decision.',
-    points: ['+40 for active duplicate rooms on the same asset.', '+50 when the seller does not match the recorded owner.', '+20 for high-value transactions without enough verification evidence.'],
-  },
-  {
-    title: 'The Showroom Network',
-    focus: 'Dealers and agents join a Trusted Network where every listed asset must pass registry verification before it can be marketed as safe.',
-    points: ['Verified dealer profiles with transaction history.', 'Shared trusted inventory for banks, insurers, buyers, and regulators.', 'Repeat offenders can be flagged across the network.'],
-  },
-  {
-    title: 'The Result',
-    focus: 'Immediate verification, zero double-selling, and a target 90% reduction in land-related court cases caused by preventable transaction fraud.',
-    points: ['Payment moves only after evidence and registry checks align.', 'Every room creates a permanent audit trail.', 'Government agencies get faster fraud intelligence and cleaner case files.'],
-  },
-]
-
 function getInitialRooms(): DealRoom[] {
   try {
     const raw = window.localStorage.getItem(storageKey)
@@ -445,32 +417,6 @@ function App() {
           <p>Create one deal room per asset per person, upload evidence, and flag duplicate ownership or registry conflicts before payment.</p>
         </div>
       </header>
-
-      <section className="pitch-panel">
-        <div className="section-heading">
-          <div>
-            <h2>Government adoption story</h2>
-            <p>A five-part demo narrative for showing why the platform matters, how it integrates, and what outcome it targets.</p>
-          </div>
-        </div>
-        <div className="pitch-grid">
-          {pitchSections.map((section) => (
-            <article key={section.title} className="pitch-card">
-              <span>{section.title}</span>
-              <p>{section.focus}</p>
-              <ul>
-                {section.points.map((point) => (
-                  <li key={point}>{point}</li>
-                ))}
-              </ul>
-            </article>
-          ))}
-        </div>
-        <div className="risk-code">
-          <strong>Risk Score Logic</strong>
-          <code>score = min(100, duplicate_sale + owner_mismatch + high_value_unverified + rapid_flipping + sanctions_match)</code>
-        </div>
-      </section>
 
       <main>
         <section className="panel">
