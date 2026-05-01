@@ -92,6 +92,71 @@ main {
   gap: 1.5rem;
 }
 
+.pitch-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 5px solid var(--kenya-red);
+  border-radius: 0.85rem;
+  box-shadow: 0 14px 35px rgba(17, 17, 17, 0.05);
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+}
+
+.pitch-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.pitch-card {
+  background: #f8fbf9;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--kenya-green);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.pitch-card span {
+  color: var(--kenya-red);
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pitch-card p {
+  color: var(--text);
+  font-weight: 650;
+  line-height: 1.5;
+  margin: 0.55rem 0 0;
+}
+
+.pitch-card ul {
+  color: var(--muted);
+  margin: 0.75rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.pitch-card li {
+  margin: 0.35rem 0;
+}
+
+.risk-code {
+  background: var(--kenya-black);
+  border-radius: 0.75rem;
+  color: white;
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.risk-code code {
+  color: #dcfce7;
+  line-height: 1.5;
+  white-space: normal;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -375,5 +440,9 @@ button.secondary:disabled {
 @media (min-width: 900px) {
   main {
     grid-template-columns: 1.2fr 0.8fr;
+  }
+
+  .pitch-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
