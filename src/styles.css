@@ -3,15 +3,19 @@
   color: #111827;
   background: #f8fafc;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --bg: #f8fafc;
+  --bg: #f4f7f5;
   --panel: #ffffff;
-  --border: #e2e8f0;
+  --border: #d9e2dc;
   --text: #111827;
   --muted: #475569;
-  --primary: #0f766e;
-  --danger: #dc2626;
-  --warning: #d97706;
-  --success: #16a34a;
+  --kenya-black: #111111;
+  --kenya-red: #bb0a1e;
+  --kenya-green: #146c43;
+  --kenya-white: #ffffff;
+  --primary: var(--kenya-green);
+  --danger: var(--kenya-red);
+  --warning: #b45309;
+  --success: var(--kenya-green);
 }
 
 * {
@@ -21,7 +25,9 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--bg);
+  background:
+    linear-gradient(180deg, rgba(17, 17, 17, 0.05), transparent 16rem),
+    var(--bg);
 }
 
 button,
@@ -37,11 +43,27 @@ select {
 }
 
 .hero {
-  background: linear-gradient(135deg, #0f766e 0%, #0c4a6e 100%);
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, var(--kenya-black) 0 32%, var(--kenya-white) 32% 36%, var(--kenya-red) 36% 64%, var(--kenya-white) 64% 68%, var(--kenya-green) 68% 100%);
   color: white;
-  border-radius: 1.5rem;
+  border-radius: 1rem;
   padding: 2rem;
   margin-bottom: 2rem;
+  box-shadow: 0 24px 60px rgba(17, 17, 17, 0.18);
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(17, 17, 17, 0.88), rgba(17, 17, 17, 0.58), rgba(17, 17, 17, 0.18));
+}
+
+.hero > div {
+  position: relative;
+  z-index: 1;
 }
 
 .eyebrow {
@@ -73,8 +95,13 @@ main {
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 1.5rem;
+  border-radius: 0.85rem;
   padding: 1.5rem;
+  box-shadow: 0 14px 35px rgba(17, 17, 17, 0.05);
+}
+
+.panel h2 {
+  color: var(--kenya-black);
 }
 
 .panel h2 {
@@ -119,17 +146,24 @@ input,
 select {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 0.75rem;
+  border-radius: 0.55rem;
   padding: 0.9rem 1rem;
   background: #ffffff;
 }
 
+input:focus,
+select:focus {
+  border-color: var(--kenya-green);
+  box-shadow: 0 0 0 3px rgba(20, 108, 67, 0.14);
+  outline: none;
+}
+
 button.primary {
   border: none;
-  background: var(--primary);
+  background: linear-gradient(135deg, var(--kenya-green), #0f5132);
   color: white;
   padding: 1rem 1.2rem;
-  border-radius: 0.95rem;
+  border-radius: 0.65rem;
   cursor: pointer;
   font-weight: 600;
 }
@@ -139,9 +173,10 @@ button.primary:hover {
 }
 
 .checklist-card {
-  background: #f8fafc;
+  background: #f8fbf9;
   border: 1px solid var(--border);
-  border-radius: 1rem;
+  border-left: 4px solid var(--kenya-green);
+  border-radius: 0.75rem;
   padding: 1rem;
   display: grid;
   gap: 0.85rem;
@@ -162,9 +197,9 @@ button.primary:hover {
 .notice {
   margin-top: 1rem;
   padding: 1rem;
-  border-radius: 1rem;
+  border-radius: 0.75rem;
   border: 1px solid var(--border);
-  background: #f8fafc;
+  background: #f8fbf9;
 }
 
 .danger {
@@ -182,7 +217,8 @@ button.primary:hover {
 
 .room-card {
   border: 1px solid var(--border);
-  border-radius: 1rem;
+  border-top: 4px solid var(--kenya-black);
+  border-radius: 0.75rem;
   padding: 1rem;
   background: white;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
@@ -238,12 +274,13 @@ button.secondary {
   background: white;
   color: var(--text);
   padding: 0.85rem 1rem;
-  border-radius: 0.95rem;
+  border-radius: 0.65rem;
   cursor: pointer;
 }
 
 button.secondary:hover {
-  background: #f1f5f9;
+  border-color: var(--kenya-green);
+  background: #f0fdf4;
 }
 
 button.secondary:disabled {
@@ -269,7 +306,7 @@ button.secondary:disabled {
 }
 
 .verification-result.clear {
-  border-color: #86efac;
+  border-color: var(--kenya-green);
   background: #f0fdf4;
 }
 
@@ -279,7 +316,7 @@ button.secondary:disabled {
 }
 
 .verification-result.blocked {
-  border-color: #fecaca;
+  border-color: var(--kenya-red);
   background: #fef2f2;
 }
 
@@ -304,6 +341,7 @@ button.secondary:disabled {
   font-size: 0.85rem;
   font-weight: 700;
   white-space: nowrap;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
 }
 
 .room-meta {
