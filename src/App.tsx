@@ -26,6 +26,16 @@ const assetLabels = {
   car: 'Vehicle registration number',
 }
 
+const identifierHelp = {
+  land: 'Use the official title format, for example LR.12345/678 or NAIROBI/BLOCK/123.',
+  car: 'Use the registration format shown on the logbook, for example KCA 123A.',
+}
+
+const statusDescriptions = {
+  land: 'A room is safe only after the registry check is clear and all evidence documents are attached.',
+  car: 'A room is safe only after the NTSA check is clear and all evidence documents are attached.',
+}
+
 function getInitialRooms(): DealRoom[] {
   try {
     const raw = window.localStorage.getItem(storageKey)
@@ -404,17 +414,22 @@ function App() {
         <div>
           <span className="eyebrow">DealRoom KE</span>
           <h1>A Kenyan pre-payment verification room for land & vehicles</h1>
-          <p>Create one deal room per asset per person, upload evidence, and flag duplicate asset conflicts before payment.</p>
+          <p>Create one deal room per asset per person, upload evidence, and flag duplicate ownership or registry conflicts before payment.</p>
         </div>
       </header>
 
       <main>
         <section className="panel">
-          <h2>Create a new asset deal room</h2>
+          <div className="section-heading">
+            <div>
+              <h2>Create a new asset deal room</h2>
+              <p>Capture the asset, parties, registry check, and evidence package in one reviewable workspace.</p>
+            </div>
+          </div>
           {loadingRooms && <div className="notice">Loading saved deal rooms...</div>}
           <form onSubmit={handleSubmit} className="form-grid">
             <label>
-              Asset type
+              <span>Asset type</span>
               <select value={assetType} onChange={(event) => setAssetType(event.target.value as AssetType)}>
                 <option value="land">Land</option>
                 <option value="car">Car</option>
@@ -422,32 +437,36 @@ function App() {
             </label>
 
             <label>
-              {assetLabels[assetType]}
+              <span>{assetLabels[assetType]}</span>
               <input value={identifier} onChange={(event) => setIdentifier(event.target.value)} placeholder="e.g. LR.12345/678" />
+              <small>{identifierHelp[assetType]}</small>
             </label>
 
             <label>
-              Deal room title
+              <span>Deal room title</span>
               <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Optional custom title" />
+              <small>Leave blank to auto-generate a title from the asset identifier.</small>
             </label>
 
             <label>
-              Buyer name
+              <span>Buyer name</span>
               <input value={buyerName} onChange={(event) => setBuyerName(event.target.value)} placeholder="Buyer name" />
             </label>
 
             <label>
-              Seller name
+              <span>Seller name</span>
               <input value={sellerName} onChange={(event) => setSellerName(event.target.value)} placeholder="Seller name" />
             </label>
 
             <label>
-              Seller phone
+              <span>Seller phone</span>
               <input value={sellerPhone} onChange={(event) => setSellerPhone(event.target.value)} placeholder="Seller phone" />
+              <small>Use a reachable phone number for buyer, agency, or escrow follow-up.</small>
             </label>
 
             <div className="checklist-card">
               <h3>Mock government registry check</h3>
+              <p>{statusDescriptions[assetType]}</p>
               <button type="button" className="secondary" onClick={handleGovernmentVerification} disabled={verificationLoading}>
                 {verificationLoading ? 'Checking registry...' : `Verify with ${assetType === 'land' ? 'Ardhisasa' : 'NTSA'} mock API`}
               </button>
@@ -466,32 +485,32 @@ function App() {
             <div className="checklist-card">
               <h3>Evidence documents</h3>
               <label>
-                {assetType === 'land' ? 'Upload Search Certificate (PDF)' : 'Upload NTSA/eCitizen Vehicle Record (PDF)'}
+                <span>{assetType === 'land' ? 'Search Certificate' : 'NTSA/eCitizen Vehicle Record'}</span>
                 <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('registryCertificate', event.target.files)} />
                 {evidenceDocuments.registryCertificate && <span className="file-name">{evidenceDocuments.registryCertificate}</span>}
               </label>
               <label>
-                Upload seller identity document
+                <span>Seller identity document</span>
                 <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('sellerIdDocument', event.target.files)} />
                 {evidenceDocuments.sellerIdDocument && <span className="file-name">{evidenceDocuments.sellerIdDocument}</span>}
               </label>
               <label>
-                Upload seller authority document
+                <span>Seller authority document</span>
                 <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('sellerAuthorityDocument', event.target.files)} />
                 {evidenceDocuments.sellerAuthorityDocument && <span className="file-name">{evidenceDocuments.sellerAuthorityDocument}</span>}
               </label>
               <label>
-                Upload supporting document bundle
+                <span>Supporting document bundle</span>
                 <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('supportingDocument', event.target.files)} />
                 {evidenceDocuments.supportingDocument && <span className="file-name">{evidenceDocuments.supportingDocument}</span>}
               </label>
               <label>
-                Upload inspection or condition report
+                <span>Inspection or condition report</span>
                 <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('inspectionDocument', event.target.files)} />
                 {evidenceDocuments.inspectionDocument && <span className="file-name">{evidenceDocuments.inspectionDocument}</span>}
               </label>
               <label>
-                Upload payment milestone instruction
+                <span>Payment milestone instruction</span>
                 <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('paymentInstruction', event.target.files)} />
                 {evidenceDocuments.paymentInstruction && <span className="file-name">{evidenceDocuments.paymentInstruction}</span>}
               </label>
@@ -510,7 +529,12 @@ function App() {
         </section>
 
         <section className="panel">
-          <h2>Existing deal rooms</h2>
+          <div className="section-heading">
+            <div>
+              <h2>Existing deal rooms</h2>
+              <p>Review active assets, registry status, evidence completeness, and transfer progress.</p>
+            </div>
+          </div>
           {rooms.length === 0 ? (
             <p>No rooms created yet. Create the first land or car deal room.</p>
           ) : (
@@ -528,17 +552,36 @@ function App() {
                       </span>
                     </div>
                     <h3>{room.title}</h3>
-                    <p><strong>Identifier:</strong> {room.identifier}</p>
-                    <p><strong>Buyer:</strong> {room.buyerName}</p>
-                    <p><strong>Seller:</strong> {room.sellerName}</p>
-                    <p><strong>Created:</strong> {new Date(room.createdAt).toLocaleString()}</p>
-                    <p><strong>Status:</strong> {room.completed ? 'Completed' : 'Pending'}</p>
-                    {room.governmentVerification && (
-                      <p><strong>Registry check:</strong> {room.governmentVerification.registry} / {room.governmentVerification.status}</p>
-                    )}
-                    {room.evidenceDocuments && (
-                      <p><strong>Evidence files:</strong> {Object.values(room.evidenceDocuments).filter(Boolean).length} uploaded</p>
-                    )}
+                    <dl className="room-meta">
+                      <div>
+                        <dt>Identifier</dt>
+                        <dd>{room.identifier}</dd>
+                      </div>
+                      <div>
+                        <dt>Buyer</dt>
+                        <dd>{room.buyerName}</dd>
+                      </div>
+                      <div>
+                        <dt>Seller</dt>
+                        <dd>{room.sellerName}</dd>
+                      </div>
+                      <div>
+                        <dt>Created</dt>
+                        <dd>{new Date(room.createdAt).toLocaleString()}</dd>
+                      </div>
+                      <div>
+                        <dt>Transfer status</dt>
+                        <dd>{room.completed ? 'Completed' : 'Pending'}</dd>
+                      </div>
+                      <div>
+                        <dt>Registry check</dt>
+                        <dd>{room.governmentVerification ? `${room.governmentVerification.registry} / ${room.governmentVerification.status}` : 'Not checked'}</dd>
+                      </div>
+                      <div>
+                        <dt>Evidence files</dt>
+                        <dd>{room.evidenceDocuments ? Object.values(room.evidenceDocuments).filter(Boolean).length : 0} of 6 attached</dd>
+                      </div>
+                    </dl>
                     {room.completed && ownership && (
                       <>
                         <p><strong>Current owner:</strong> {ownership.currentOwner}</p>
