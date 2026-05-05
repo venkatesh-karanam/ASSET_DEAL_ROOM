@@ -290,6 +290,39 @@ function App() {
     }
   }, [evidenceDocuments, sellerIdNumber, sellerKraPin, sellerPhoneVerified])
 
+  const evidenceFileCount = useMemo(
+    () => Object.values(evidenceDocuments).filter(Boolean).length,
+    [evidenceDocuments],
+  )
+
+  const riskPreview = useMemo(() => {
+    const sellerMismatch = Boolean(currentOwner && currentOwner !== sellerName.trim())
+
+    if (
+      activeConflict ||
+      sellerMismatch ||
+      governmentVerification?.status === 'blocked' ||
+      !governmentVerification?.verified ||
+      sellerKyc.status === 'incomplete'
+    ) {
+      return { key: 'stop', label: 'Do not pay yet' }
+    }
+
+    if (governmentVerification.status !== 'clear' || sellerKyc.status !== 'verified' || evidenceFileCount < 9) {
+      return { key: 'caution', label: 'Proceed with caution' }
+    }
+
+    return { key: 'safe', label: 'Safe to proceed' }
+  }, [activeConflict, currentOwner, evidenceFileCount, governmentVerification, sellerKyc.status, sellerName])
+
+  const workflowSteps = [
+    { label: 'Asset Setup', complete: Boolean(identifier.trim() && title.trim()) },
+    { label: 'Parties', complete: Boolean(buyerName.trim() && sellerName.trim() && sellerPhone.trim() && sellerPhoneVerified) },
+    { label: 'Seller KYC', complete: sellerKyc.status === 'verified' },
+    { label: 'Upload Evidence', complete: evidenceFileCount === 9 },
+    { label: 'Risk Status & Review', complete: riskPreview.key === 'safe' },
+  ]
+
   const setEvidenceFile = (key: keyof typeof initialEvidenceDocuments, fileList: FileList | null) => {
     setEvidenceDocuments((prev) => ({ ...prev, [key]: fileList?.[0]?.name || '' }))
   }
@@ -482,10 +515,10 @@ function App() {
 
       <main className="workflow-shell">
         <div className="workflow-steps" aria-label="Deal room workflow steps">
-          {['Asset Setup', 'Parties', 'Seller KYC', 'Upload Evidence', 'Risk Status & Review'].map((step, index) => (
-            <div key={step} className="step-chip">
+          {workflowSteps.map((step, index) => (
+            <div key={step.label} className={`step-chip ${step.complete ? 'complete' : ''}`}>
               <span>{index + 1}</span>
-              <strong>{step}</strong>
+              <strong>{step.label}</strong>
             </div>
           ))}
         </div>
@@ -493,7 +526,7 @@ function App() {
         {loadingRooms && <div className="notice">Loading saved deal rooms...</div>}
 
         <form onSubmit={handleSubmit} className="workflow-grid">
-          <section className="workflow-card">
+          <section className={`workflow-card ${workflowSteps[0].complete ? 'complete' : ''}`}>
             <h2>1. Asset Setup</h2>
             <div className="workflow-card-body">
               <label>
@@ -513,10 +546,10 @@ function App() {
                 <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. LR.12345 sale" />
               </label>
             </div>
-            <button type="button" className="primary">Next</button>
+            <div className="card-footer-note">{workflowSteps[0].complete ? 'Asset ready' : 'Complete asset details'}</div>
           </section>
 
-          <section className="workflow-card">
+          <section className={`workflow-card ${workflowSteps[1].complete ? 'complete' : ''}`}>
             <h2>2. Parties</h2>
             <div className="workflow-card-body">
               <label>
@@ -531,18 +564,15 @@ function App() {
                 <span>Seller phone</span>
                 <input value={sellerPhone} onChange={(event) => setSellerPhone(event.target.value)} placeholder="Seller phone" />
               </label>
-              <label className="verified-strip">
+              <label className={`verified-strip ${sellerPhoneVerified ? 'complete' : ''}`}>
                 <input type="checkbox" checked={sellerPhoneVerified} onChange={(event) => setSellerPhoneVerified(event.target.checked)} />
                 <span>Seller phone verified by OTP or call-back</span>
               </label>
             </div>
-            <div className="button-row">
-              <button type="button" className="secondary">Back</button>
-              <button type="button" className="primary">Next</button>
-            </div>
+            <div className="card-footer-note">{workflowSteps[1].complete ? 'Parties confirmed' : 'Verify seller phone'}</div>
           </section>
 
-          <section className="workflow-card">
+          <section className={`workflow-card ${workflowSteps[2].complete ? 'complete' : ''}`}>
             <h2>3. Seller KYC</h2>
             <div className="workflow-card-body">
               <div className="kyc-header compact">
@@ -565,19 +595,16 @@ function App() {
                 <strong>{sellerPhoneVerified ? 'Confirmed' : 'Pending'}</strong>
               </div>
             </div>
-            <div className="button-row">
-              <button type="button" className="secondary">Back</button>
-              <button type="button" className="primary">Next</button>
-            </div>
+            <div className="card-footer-note">{sellerKyc.status === 'verified' ? 'KYC verified' : `${sellerKyc.score}% complete`}</div>
           </section>
 
-          <section className="workflow-card">
+          <section className={`workflow-card ${workflowSteps[3].complete ? 'complete' : ''}`}>
             <h2>4. Upload Evidence</h2>
             <div className="workflow-card-body">
               <label className="drop-zone">
                 <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('registryCertificate', event.target.files)} />
-                <span>Drop files here or click to upload.</span>
-                <small>Secure evidence metadata for the review room.</small>
+                <span>{evidenceDocuments.registryCertificate || 'Drop files here or click to upload.'}</span>
+                <small>{evidenceFileCount} of 9 evidence files attached.</small>
               </label>
               <div className="evidence-list">
                 {[
@@ -588,22 +615,23 @@ function App() {
                   ['sellerAuthorityDocument', 'Authority document'],
                   ['inspectionDocument', 'Inspection report'],
                 ].map(([key, label]) => (
-                  <label key={key}>
+                  <label key={key} className={evidenceDocuments[key as keyof typeof initialEvidenceDocuments] ? 'complete' : ''}>
                     <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile(key as keyof typeof initialEvidenceDocuments, event.target.files)} />
-                    <span>{label}</span>
+                    <span>{evidenceDocuments[key as keyof typeof initialEvidenceDocuments] || label}</span>
                   </label>
                 ))}
               </div>
             </div>
+            <div className="card-footer-note">{workflowSteps[3].complete ? 'Evidence package complete' : `${evidenceFileCount} of 9 attached`}</div>
           </section>
 
-          <section className="workflow-card review-card">
+          <section className={`workflow-card review-card ${workflowSteps[4].complete ? 'complete' : ''}`}>
             <h2>5. Risk Status & Review</h2>
             <div className="workflow-card-body">
               <div className="status-options">
-                <div className="status-option safe">Safe to proceed</div>
-                <div className="status-option caution">Proceed with caution</div>
-                <div className="status-option stop">Do not pay yet</div>
+                <div className={`status-option safe ${riskPreview.key === 'safe' ? 'active' : ''}`}>Safe to proceed</div>
+                <div className={`status-option caution ${riskPreview.key === 'caution' ? 'active' : ''}`}>Proceed with caution</div>
+                <div className={`status-option stop ${riskPreview.key === 'stop' ? 'active' : ''}`}>Do not pay yet</div>
               </div>
               <button type="button" className="secondary" onClick={handleGovernmentVerification} disabled={verificationLoading}>
                 {verificationLoading ? 'Checking registry...' : `Verify with ${assetType === 'land' ? 'Ardhisasa' : 'NTSA'}`}
@@ -612,12 +640,13 @@ function App() {
                 <p><strong>Recorded owner:</strong> {currentOwner || governmentVerification?.owner || 'Not yet registered'}</p>
                 <p><strong>Audit trail review:</strong> Government-style checks and seller KYC required.</p>
                 <p><strong>KYC score:</strong> {sellerKyc.score}% / {sellerKyc.status}</p>
-                <p><strong>Evidence files:</strong> {Object.values(evidenceDocuments).filter(Boolean).length} of 9 attached</p>
+                <p><strong>Live decision:</strong> {riskPreview.label}</p>
+                <p><strong>Evidence files:</strong> {evidenceFileCount} of 9 attached</p>
                 <p>{riskSummary}</p>
               </div>
               {message && <div className="notice compact-notice">{message}</div>}
             </div>
-            <button type="submit" className="primary">Finish</button>
+            <button type="submit" className="primary">Create verified room</button>
           </section>
         </form>
       </main>
