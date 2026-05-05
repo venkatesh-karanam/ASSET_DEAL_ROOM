@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { AssetType, DealRoom, GovernmentVerification } from './types'
+import type { AssetType, DealRoom, GovernmentVerification, SellerKyc } from './types'
 
 const storageKey = 'dealroom-ke-rooms'
 const ownersKey = 'dealroom-ke-owners'
@@ -15,6 +15,9 @@ const initialChecks = {
 const initialEvidenceDocuments = {
   registryCertificate: '',
   sellerIdDocument: '',
+  sellerKraPinCertificate: '',
+  sellerSelfieMatch: '',
+  sellerAddressProof: '',
   sellerAuthorityDocument: '',
   supportingDocument: '',
   inspectionDocument: '',
@@ -71,6 +74,7 @@ interface BackendDealRoom {
   paymentMilestone?: boolean
   evidenceDocuments?: Record<string, string>
   governmentVerification?: GovernmentVerification
+  sellerKyc?: SellerKyc
 }
 
 function mapBackendRoom(room: BackendDealRoom): DealRoom {
@@ -86,6 +90,7 @@ function mapBackendRoom(room: BackendDealRoom): DealRoom {
     officialChecks: room.officialChecks || {},
     evidenceDocuments: room.evidenceDocuments || {},
     governmentVerification: room.governmentVerification,
+    sellerKyc: room.sellerKyc,
     identityProof: Boolean(room.identityProof),
     authorityProof: Boolean(room.authorityProof),
     supportingDocs: Boolean(room.supportingDocs),
@@ -122,8 +127,12 @@ function getInitialOwners(): Record<string, OwnershipRecord> {
 function getRiskStatus(room: DealRoom): { status: string; color: string } {
   const verification = room.governmentVerification
   const evidence = room.evidenceDocuments || {}
+  const sellerKyc = room.sellerKyc
   const hasRegistryEvidence = Boolean(evidence.registryCertificate)
   const hasIdentityEvidence = Boolean(evidence.sellerIdDocument)
+  const hasKraEvidence = Boolean(evidence.sellerKraPinCertificate)
+  const hasSelfieEvidence = Boolean(evidence.sellerSelfieMatch)
+  const hasAddressEvidence = Boolean(evidence.sellerAddressProof)
   const hasAuthorityEvidence = Boolean(evidence.sellerAuthorityDocument)
   const hasSupportingEvidence = Boolean(evidence.supportingDocument)
   const hasInspectionEvidence = Boolean(evidence.inspectionDocument)
@@ -133,15 +142,21 @@ function getRiskStatus(room: DealRoom): { status: string; color: string } {
     room.fraud ||
     room.conflict ||
     verification?.status === 'blocked' ||
-    !verification?.verified
+    !verification?.verified ||
+    !sellerKyc ||
+    sellerKyc.status === 'incomplete'
   ) {
     return { status: 'Do not pay yet', color: 'var(--danger)' }
   }
 
   if (
     verification.status !== 'clear' ||
+    sellerKyc.status !== 'verified' ||
     !hasRegistryEvidence ||
     !hasIdentityEvidence ||
+    !hasKraEvidence ||
+    !hasSelfieEvidence ||
+    !hasAddressEvidence ||
     !hasAuthorityEvidence ||
     !hasSupportingEvidence ||
     !hasInspectionEvidence ||
@@ -162,6 +177,9 @@ function App() {
   const [buyerName, setBuyerName] = useState('')
   const [sellerName, setSellerName] = useState('')
   const [sellerPhone, setSellerPhone] = useState('')
+  const [sellerIdNumber, setSellerIdNumber] = useState('')
+  const [sellerKraPin, setSellerKraPin] = useState('')
+  const [sellerPhoneVerified, setSellerPhoneVerified] = useState(false)
   const [checked, setChecked] = useState(initialChecks)
   const [evidenceDocuments, setEvidenceDocuments] = useState(initialEvidenceDocuments)
   const [governmentVerification, setGovernmentVerification] = useState<GovernmentVerification | null>(null)
@@ -235,6 +253,43 @@ function App() {
     return conflict || fraudCheck || registryCheck
   }, [activeConflict, buyerName, identifier, sellerName, currentOwner, governmentVerification])
 
+  const sellerKyc = useMemo<SellerKyc>(() => {
+    const idNumber = sellerIdNumber.trim()
+    const kraPin = sellerKraPin.trim().toUpperCase()
+    const idDocumentUploaded = Boolean(evidenceDocuments.sellerIdDocument)
+    const kraPinCertificateUploaded = Boolean(evidenceDocuments.sellerKraPinCertificate)
+    const selfieMatchUploaded = Boolean(evidenceDocuments.sellerSelfieMatch)
+    const proofOfAddressUploaded = Boolean(evidenceDocuments.sellerAddressProof)
+    const authorityDocumentUploaded = Boolean(evidenceDocuments.sellerAuthorityDocument)
+    const validIdNumber = /^\d{6,10}$/.test(idNumber)
+    const validKraPin = /^[AP]\d{9}[A-Z]$/.test(kraPin)
+    const checks = [
+      validIdNumber,
+      validKraPin,
+      sellerPhoneVerified,
+      idDocumentUploaded,
+      kraPinCertificateUploaded,
+      selfieMatchUploaded,
+      proofOfAddressUploaded,
+      authorityDocumentUploaded,
+    ]
+    const score = Math.round((checks.filter(Boolean).length / checks.length) * 100)
+    const status = score === 100 ? 'verified' : score >= 70 ? 'review' : 'incomplete'
+
+    return {
+      idNumber,
+      kraPin,
+      phoneVerified: sellerPhoneVerified,
+      idDocumentUploaded,
+      kraPinCertificateUploaded,
+      selfieMatchUploaded,
+      proofOfAddressUploaded,
+      authorityDocumentUploaded,
+      score,
+      status,
+    }
+  }, [evidenceDocuments, sellerIdNumber, sellerKraPin, sellerPhoneVerified])
+
   const setEvidenceFile = (key: keyof typeof initialEvidenceDocuments, fileList: FileList | null) => {
     setEvidenceDocuments((prev) => ({ ...prev, [key]: fileList?.[0]?.name || '' }))
   }
@@ -299,6 +354,11 @@ function App() {
       return
     }
 
+    if (sellerKyc.status !== 'verified') {
+      setMessage('Seller KYC is incomplete. Verify ID number, KRA PIN, phone, selfie match, address proof, and authority documents before creating the deal room.')
+      return
+    }
+
     const normalized = identifier.trim().toUpperCase()
     const normalizedSeller = sellerName.trim()
     const normalizedBuyer = buyerName.trim()
@@ -331,6 +391,7 @@ function App() {
       },
       evidenceDocuments,
       governmentVerification: governmentVerification || undefined,
+      sellerKyc,
       identityProof: Boolean(evidenceDocuments.sellerIdDocument),
       authorityProof: Boolean(evidenceDocuments.sellerAuthorityDocument),
       supportingDocs: Boolean(evidenceDocuments.supportingDocument),
@@ -361,6 +422,7 @@ function App() {
             officialChecks: draftRoom.officialChecks,
             evidenceDocuments: draftRoom.evidenceDocuments,
             governmentVerification: draftRoom.governmentVerification,
+            sellerKyc: draftRoom.sellerKyc,
             identityProof: draftRoom.identityProof,
             authorityProof: draftRoom.authorityProof,
             supportingDocs: draftRoom.supportingDocs,
@@ -464,6 +526,30 @@ function App() {
               <small>Use a reachable phone number for buyer, agency, or escrow follow-up.</small>
             </label>
 
+            <div className="checklist-card kyc-card">
+              <div className="kyc-header">
+                <div>
+                  <h3>Strict seller KYC</h3>
+                  <p>Seller identity must be fully verified before this deal room can be created or marked safe.</p>
+                </div>
+                <span className={`kyc-badge ${sellerKyc.status}`}>{sellerKyc.score}% {sellerKyc.status}</span>
+              </div>
+              <label>
+                <span>Seller national ID number</span>
+                <input value={sellerIdNumber} onChange={(event) => setSellerIdNumber(event.target.value)} placeholder="e.g. 12345678" />
+                <small>Required: 6 to 10 digits, matching the seller identity document.</small>
+              </label>
+              <label>
+                <span>Seller KRA PIN</span>
+                <input value={sellerKraPin} onChange={(event) => setSellerKraPin(event.target.value.toUpperCase())} placeholder="e.g. A123456789B" />
+                <small>Required format: A or P, nine digits, then a final letter.</small>
+              </label>
+              <label className="checkbox-row">
+                <input type="checkbox" checked={sellerPhoneVerified} onChange={(event) => setSellerPhoneVerified(event.target.checked)} />
+                Seller phone number confirmed by OTP or call-back
+              </label>
+            </div>
+
             <div className="checklist-card">
               <h3>Mock government registry check</h3>
               <p>{statusDescriptions[assetType]}</p>
@@ -493,6 +579,21 @@ function App() {
                 <span>Seller identity document</span>
                 <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('sellerIdDocument', event.target.files)} />
                 {evidenceDocuments.sellerIdDocument && <span className="file-name">{evidenceDocuments.sellerIdDocument}</span>}
+              </label>
+              <label>
+                <span>KRA PIN certificate</span>
+                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('sellerKraPinCertificate', event.target.files)} />
+                {evidenceDocuments.sellerKraPinCertificate && <span className="file-name">{evidenceDocuments.sellerKraPinCertificate}</span>}
+              </label>
+              <label>
+                <span>Selfie match or live photo proof</span>
+                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('sellerSelfieMatch', event.target.files)} />
+                {evidenceDocuments.sellerSelfieMatch && <span className="file-name">{evidenceDocuments.sellerSelfieMatch}</span>}
+              </label>
+              <label>
+                <span>Proof of address or residency</span>
+                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('sellerAddressProof', event.target.files)} />
+                {evidenceDocuments.sellerAddressProof && <span className="file-name">{evidenceDocuments.sellerAddressProof}</span>}
               </label>
               <label>
                 <span>Seller authority document</span>
@@ -579,7 +680,11 @@ function App() {
                       </div>
                       <div>
                         <dt>Evidence files</dt>
-                        <dd>{room.evidenceDocuments ? Object.values(room.evidenceDocuments).filter(Boolean).length : 0} of 6 attached</dd>
+                        <dd>{room.evidenceDocuments ? Object.values(room.evidenceDocuments).filter(Boolean).length : 0} of 9 attached</dd>
+                      </div>
+                      <div>
+                        <dt>Seller KYC</dt>
+                        <dd>{room.sellerKyc ? `${room.sellerKyc.score}% / ${room.sellerKyc.status}` : 'Not verified'}</dd>
                       </div>
                     </dl>
                     {room.completed && ownership && (

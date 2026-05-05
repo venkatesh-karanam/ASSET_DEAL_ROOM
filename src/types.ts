@@ -16,6 +16,19 @@ export interface GovernmentVerification {
   message: string
 }
 
+export interface SellerKyc {
+  idNumber: string
+  kraPin: string
+  phoneVerified: boolean
+  idDocumentUploaded: boolean
+  kraPinCertificateUploaded: boolean
+  selfieMatchUploaded: boolean
+  proofOfAddressUploaded: boolean
+  authorityDocumentUploaded: boolean
+  score: number
+  status: 'incomplete' | 'review' | 'verified'
+}
+
 export interface DealRoom {
   id: string
   assetType: AssetType
@@ -28,6 +41,7 @@ export interface DealRoom {
   officialChecks: Record<string, boolean>
   evidenceDocuments?: Record<string, string>
   governmentVerification?: GovernmentVerification
+  sellerKyc?: SellerKyc
   identityProof: boolean
   authorityProof: boolean
   supportingDocs: boolean

@@ -160,6 +160,7 @@ router.post('/deal-rooms', authMiddleware, async (req: AuthRequest, res: Respons
       officialChecks: typeof req.body.officialChecks === 'object' && req.body.officialChecks !== null ? req.body.officialChecks : {},
       evidenceDocuments: typeof req.body.evidenceDocuments === 'object' && req.body.evidenceDocuments !== null ? req.body.evidenceDocuments : {},
       governmentVerification: typeof req.body.governmentVerification === 'object' && req.body.governmentVerification !== null ? req.body.governmentVerification : undefined,
+      sellerKyc: typeof req.body.sellerKyc === 'object' && req.body.sellerKyc !== null ? req.body.sellerKyc : undefined,
       identityProof: Boolean(req.body.identityProof),
       authorityProof: Boolean(req.body.authorityProof),
       supportingDocs: Boolean(req.body.supportingDocs),

@@ -186,6 +186,43 @@ button.primary:hover {
   margin: 0;
 }
 
+.kyc-card {
+  border-left-color: var(--kenya-red);
+}
+
+.kyc-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.kyc-header h3 {
+  margin: 0;
+}
+
+.kyc-badge {
+  border-radius: 999px;
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.35rem 0.7rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.kyc-badge.incomplete {
+  background: var(--kenya-red);
+}
+
+.kyc-badge.review {
+  background: var(--warning);
+}
+
+.kyc-badge.verified {
+  background: var(--kenya-green);
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
