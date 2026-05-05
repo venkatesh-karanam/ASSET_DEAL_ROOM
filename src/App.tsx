@@ -480,228 +480,146 @@ function App() {
         </div>
       </header>
 
-      <main>
-        <section className="panel">
-          <div className="section-heading">
-            <div>
-              <h2>Create a new asset deal room</h2>
-              <p>Capture the asset, parties, registry check, and evidence package in one reviewable workspace.</p>
+      <main className="workflow-shell">
+        <div className="workflow-steps" aria-label="Deal room workflow steps">
+          {['Asset Setup', 'Parties', 'Seller KYC', 'Upload Evidence', 'Risk Status & Review'].map((step, index) => (
+            <div key={step} className="step-chip">
+              <span>{index + 1}</span>
+              <strong>{step}</strong>
             </div>
-          </div>
-          {loadingRooms && <div className="notice">Loading saved deal rooms...</div>}
-          <form onSubmit={handleSubmit} className="form-grid">
-            <label>
-              <span>Asset type</span>
-              <select value={assetType} onChange={(event) => setAssetType(event.target.value as AssetType)}>
-                <option value="land">Land</option>
-                <option value="car">Car</option>
-              </select>
-            </label>
+          ))}
+        </div>
 
-            <label>
-              <span>{assetLabels[assetType]}</span>
-              <input value={identifier} onChange={(event) => setIdentifier(event.target.value)} placeholder="e.g. LR.12345/678" />
-              <small>{identifierHelp[assetType]}</small>
-            </label>
+        {loadingRooms && <div className="notice">Loading saved deal rooms...</div>}
 
-            <label>
-              <span>Deal room title</span>
-              <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Optional custom title" />
-              <small>Leave blank to auto-generate a title from the asset identifier.</small>
-            </label>
+        <form onSubmit={handleSubmit} className="workflow-grid">
+          <section className="workflow-card">
+            <h2>1. Asset Setup</h2>
+            <div className="workflow-card-body">
+              <label>
+                <span>Asset type</span>
+                <select value={assetType} onChange={(event) => setAssetType(event.target.value as AssetType)}>
+                  <option value="land">Land</option>
+                  <option value="car">Vehicle</option>
+                </select>
+              </label>
+              <label>
+                <span>{assetLabels[assetType]}</span>
+                <input value={identifier} onChange={(event) => setIdentifier(event.target.value)} placeholder="e.g. LR.12345/678" />
+                <small>{identifierHelp[assetType]}</small>
+              </label>
+              <label>
+                <span>Deal room title</span>
+                <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. LR.12345 sale" />
+              </label>
+            </div>
+            <button type="button" className="primary">Next</button>
+          </section>
 
-            <label>
-              <span>Buyer name</span>
-              <input value={buyerName} onChange={(event) => setBuyerName(event.target.value)} placeholder="Buyer name" />
-            </label>
+          <section className="workflow-card">
+            <h2>2. Parties</h2>
+            <div className="workflow-card-body">
+              <label>
+                <span>Buyer</span>
+                <input value={buyerName} onChange={(event) => setBuyerName(event.target.value)} placeholder="Buyer name" />
+              </label>
+              <label>
+                <span>Seller</span>
+                <input value={sellerName} onChange={(event) => setSellerName(event.target.value)} placeholder="Seller name" />
+              </label>
+              <label>
+                <span>Seller phone</span>
+                <input value={sellerPhone} onChange={(event) => setSellerPhone(event.target.value)} placeholder="Seller phone" />
+              </label>
+              <label className="verified-strip">
+                <input type="checkbox" checked={sellerPhoneVerified} onChange={(event) => setSellerPhoneVerified(event.target.checked)} />
+                <span>Seller phone verified by OTP or call-back</span>
+              </label>
+            </div>
+            <div className="button-row">
+              <button type="button" className="secondary">Back</button>
+              <button type="button" className="primary">Next</button>
+            </div>
+          </section>
 
-            <label>
-              <span>Seller name</span>
-              <input value={sellerName} onChange={(event) => setSellerName(event.target.value)} placeholder="Seller name" />
-            </label>
-
-            <label>
-              <span>Seller phone</span>
-              <input value={sellerPhone} onChange={(event) => setSellerPhone(event.target.value)} placeholder="Seller phone" />
-              <small>Use a reachable phone number for buyer, agency, or escrow follow-up.</small>
-            </label>
-
-            <div className="checklist-card kyc-card">
-              <div className="kyc-header">
+          <section className="workflow-card">
+            <h2>3. Seller KYC</h2>
+            <div className="workflow-card-body">
+              <div className="kyc-header compact">
                 <div>
                   <h3>Strict seller KYC</h3>
-                  <p>Seller identity must be fully verified before this deal room can be created or marked safe.</p>
+                  <p>Seller identity must be fully verified.</p>
                 </div>
-                <span className={`kyc-badge ${sellerKyc.status}`}>{sellerKyc.score}% {sellerKyc.status}</span>
+                <span className={`kyc-badge ${sellerKyc.status}`}>{sellerKyc.score}%</span>
               </div>
               <label>
-                <span>Seller national ID number</span>
+                <span>Seller ID number</span>
                 <input value={sellerIdNumber} onChange={(event) => setSellerIdNumber(event.target.value)} placeholder="e.g. 12345678" />
-                <small>Required: 6 to 10 digits, matching the seller identity document.</small>
               </label>
               <label>
-                <span>Seller KRA PIN</span>
-                <input value={sellerKraPin} onChange={(event) => setSellerKraPin(event.target.value.toUpperCase())} placeholder="e.g. A123456789B" />
-                <small>Required format: A or P, nine digits, then a final letter.</small>
+                <span>KRA PIN</span>
+                <input value={sellerKraPin} onChange={(event) => setSellerKraPin(event.target.value.toUpperCase())} placeholder="A123456789B" />
               </label>
-              <label className="checkbox-row">
-                <input type="checkbox" checked={sellerPhoneVerified} onChange={(event) => setSellerPhoneVerified(event.target.checked)} />
-                Seller phone number confirmed by OTP or call-back
-              </label>
+              <div className="kyc-confirmation">
+                <span>Phone Verified</span>
+                <strong>{sellerPhoneVerified ? 'Confirmed' : 'Pending'}</strong>
+              </div>
             </div>
-
-            <div className="checklist-card">
-              <h3>Mock government registry check</h3>
-              <p>{statusDescriptions[assetType]}</p>
-              <button type="button" className="secondary" onClick={handleGovernmentVerification} disabled={verificationLoading}>
-                {verificationLoading ? 'Checking registry...' : `Verify with ${assetType === 'land' ? 'Ardhisasa' : 'NTSA'} mock API`}
-              </button>
-              {governmentVerification && (
-                <div className={`verification-result ${governmentVerification.status}`}>
-                  <strong>{governmentVerification.registry} status: {governmentVerification.status.toUpperCase()}</strong>
-                  <p>{governmentVerification.message}</p>
-                  <p><strong>Reference:</strong> {governmentVerification.reference}</p>
-                  <p><strong>Registry owner:</strong> {governmentVerification.owner}</p>
-                  {governmentVerification.caveats.length > 0 && <p><strong>Caveats:</strong> {governmentVerification.caveats.join(', ')}</p>}
-                  {governmentVerification.encumbrances.length > 0 && <p><strong>Encumbrances:</strong> {governmentVerification.encumbrances.join(', ')}</p>}
-                </div>
-              )}
+            <div className="button-row">
+              <button type="button" className="secondary">Back</button>
+              <button type="button" className="primary">Next</button>
             </div>
+          </section>
 
-            <div className="checklist-card">
-              <h3>Evidence documents</h3>
-              <label>
-                <span>{assetType === 'land' ? 'Search Certificate' : 'NTSA/eCitizen Vehicle Record'}</span>
+          <section className="workflow-card">
+            <h2>4. Upload Evidence</h2>
+            <div className="workflow-card-body">
+              <label className="drop-zone">
                 <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('registryCertificate', event.target.files)} />
-                {evidenceDocuments.registryCertificate && <span className="file-name">{evidenceDocuments.registryCertificate}</span>}
+                <span>Drop files here or click to upload.</span>
+                <small>Secure evidence metadata for the review room.</small>
               </label>
-              <label>
-                <span>Seller identity document</span>
-                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('sellerIdDocument', event.target.files)} />
-                {evidenceDocuments.sellerIdDocument && <span className="file-name">{evidenceDocuments.sellerIdDocument}</span>}
-              </label>
-              <label>
-                <span>KRA PIN certificate</span>
-                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('sellerKraPinCertificate', event.target.files)} />
-                {evidenceDocuments.sellerKraPinCertificate && <span className="file-name">{evidenceDocuments.sellerKraPinCertificate}</span>}
-              </label>
-              <label>
-                <span>Selfie match or live photo proof</span>
-                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('sellerSelfieMatch', event.target.files)} />
-                {evidenceDocuments.sellerSelfieMatch && <span className="file-name">{evidenceDocuments.sellerSelfieMatch}</span>}
-              </label>
-              <label>
-                <span>Proof of address or residency</span>
-                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('sellerAddressProof', event.target.files)} />
-                {evidenceDocuments.sellerAddressProof && <span className="file-name">{evidenceDocuments.sellerAddressProof}</span>}
-              </label>
-              <label>
-                <span>Seller authority document</span>
-                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('sellerAuthorityDocument', event.target.files)} />
-                {evidenceDocuments.sellerAuthorityDocument && <span className="file-name">{evidenceDocuments.sellerAuthorityDocument}</span>}
-              </label>
-              <label>
-                <span>Supporting document bundle</span>
-                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('supportingDocument', event.target.files)} />
-                {evidenceDocuments.supportingDocument && <span className="file-name">{evidenceDocuments.supportingDocument}</span>}
-              </label>
-              <label>
-                <span>Inspection or condition report</span>
-                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('inspectionDocument', event.target.files)} />
-                {evidenceDocuments.inspectionDocument && <span className="file-name">{evidenceDocuments.inspectionDocument}</span>}
-              </label>
-              <label>
-                <span>Payment milestone instruction</span>
-                <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile('paymentInstruction', event.target.files)} />
-                {evidenceDocuments.paymentInstruction && <span className="file-name">{evidenceDocuments.paymentInstruction}</span>}
-              </label>
+              <div className="evidence-list">
+                {[
+                  ['sellerIdDocument', 'Seller ID document'],
+                  ['sellerKraPinCertificate', 'KRA PIN certificate'],
+                  ['sellerSelfieMatch', 'Selfie match'],
+                  ['sellerAddressProof', 'Proof of address'],
+                  ['sellerAuthorityDocument', 'Authority document'],
+                  ['inspectionDocument', 'Inspection report'],
+                ].map(([key, label]) => (
+                  <label key={key}>
+                    <input type="file" accept=".pdf,image/*" onChange={(event) => setEvidenceFile(key as keyof typeof initialEvidenceDocuments, event.target.files)} />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
+          </section>
 
-            <button type="submit" className="primary">Create deal room</button>
-          </form>
-          {message && <div className="notice">{message}</div>}
-          <div className="status-card">
-            <strong>Conflict check</strong>
-            <p>{riskSummary}</p>
-            <p><strong>Recorded current owner:</strong> {currentOwner || 'Not yet registered'}</p>
-            {previousOwner && <p><strong>Previous owner:</strong> {previousOwner}</p>}
-            {activeConflict && <p className="danger">{activeConflict}</p>}
-          </div>
-        </section>
-
-        <section className="panel">
-          <div className="section-heading">
-            <div>
-              <h2>Existing deal rooms</h2>
-              <p>Review active assets, registry status, evidence completeness, and transfer progress.</p>
+          <section className="workflow-card review-card">
+            <h2>5. Risk Status & Review</h2>
+            <div className="workflow-card-body">
+              <div className="status-options">
+                <div className="status-option safe">Safe to proceed</div>
+                <div className="status-option caution">Proceed with caution</div>
+                <div className="status-option stop">Do not pay yet</div>
+              </div>
+              <button type="button" className="secondary" onClick={handleGovernmentVerification} disabled={verificationLoading}>
+                {verificationLoading ? 'Checking registry...' : `Verify with ${assetType === 'land' ? 'Ardhisasa' : 'NTSA'}`}
+              </button>
+              <div className="review-summary">
+                <p><strong>Recorded owner:</strong> {currentOwner || governmentVerification?.owner || 'Not yet registered'}</p>
+                <p><strong>Audit trail review:</strong> Government-style checks and seller KYC required.</p>
+                <p><strong>KYC score:</strong> {sellerKyc.score}% / {sellerKyc.status}</p>
+                <p><strong>Evidence files:</strong> {Object.values(evidenceDocuments).filter(Boolean).length} of 9 attached</p>
+                <p>{riskSummary}</p>
+              </div>
+              {message && <div className="notice compact-notice">{message}</div>}
             </div>
-          </div>
-          {rooms.length === 0 ? (
-            <p>No rooms created yet. Create the first land or car deal room.</p>
-          ) : (
-            <div className="room-grid">
-              {rooms.map((room) => {
-                const risk = getRiskStatus(room)
-                const assetKey = `${room.assetType}-${room.identifier.toLowerCase()}`
-                const ownership = assetOwners[assetKey]
-                return (
-                  <article key={room.id} className="room-card">
-                    <div className="room-header">
-                      <span>{room.assetType.toUpperCase()}</span>
-                      <span className="pill" style={{ background: risk.color }}>
-                        {risk.status}
-                      </span>
-                    </div>
-                    <h3>{room.title}</h3>
-                    <dl className="room-meta">
-                      <div>
-                        <dt>Identifier</dt>
-                        <dd>{room.identifier}</dd>
-                      </div>
-                      <div>
-                        <dt>Buyer</dt>
-                        <dd>{room.buyerName}</dd>
-                      </div>
-                      <div>
-                        <dt>Seller</dt>
-                        <dd>{room.sellerName}</dd>
-                      </div>
-                      <div>
-                        <dt>Created</dt>
-                        <dd>{new Date(room.createdAt).toLocaleString()}</dd>
-                      </div>
-                      <div>
-                        <dt>Transfer status</dt>
-                        <dd>{room.completed ? 'Completed' : 'Pending'}</dd>
-                      </div>
-                      <div>
-                        <dt>Registry check</dt>
-                        <dd>{room.governmentVerification ? `${room.governmentVerification.registry} / ${room.governmentVerification.status}` : 'Not checked'}</dd>
-                      </div>
-                      <div>
-                        <dt>Evidence files</dt>
-                        <dd>{room.evidenceDocuments ? Object.values(room.evidenceDocuments).filter(Boolean).length : 0} of 9 attached</dd>
-                      </div>
-                      <div>
-                        <dt>Seller KYC</dt>
-                        <dd>{room.sellerKyc ? `${room.sellerKyc.score}% / ${room.sellerKyc.status}` : 'Not verified'}</dd>
-                      </div>
-                    </dl>
-                    {room.completed && ownership && (
-                      <>
-                        <p><strong>Current owner:</strong> {ownership.currentOwner}</p>
-                        {ownership.previousOwner && <p><strong>Previous owner:</strong> {ownership.previousOwner}</p>}
-                      </>
-                    )}
-                    {room.conflict ? <p className="danger">{room.conflict}</p> : <p className="fine">No duplicate room found</p>}
-                    {room.fraud ? <p className="danger">Fraud flag: Seller not current owner</p> : null}
-                    {!room.completed && <button onClick={() => markCompleted(room.id)}>Mark as Completed</button>}
-                  </article>
-                )
-              })}
-            </div>
-          )}
-        </section>
+            <button type="submit" className="primary">Finish</button>
+          </section>
+        </form>
       </main>
     </div>
   )
