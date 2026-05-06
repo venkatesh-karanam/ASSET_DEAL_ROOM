@@ -425,7 +425,7 @@ function App() {
       case 2:
         return Boolean(buyerName.trim() && sellerName.trim() && sellerPhone.trim() && sellerPhoneVerified)
       case 3:
-        return sellerKyc.status !== 'incomplete'
+        return Boolean(sellerIdNumber.trim().length > 0 && sellerKraPin.trim().length > 0 && sellerPhoneVerified)
       case 4:
         return evidenceFileCount >= 6
       case 5:
