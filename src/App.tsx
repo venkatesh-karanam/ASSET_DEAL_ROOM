@@ -438,8 +438,8 @@ function App() {
       return
     }
 
-    if (currentStep === 3 && sellerKyc.status !== 'verified') {
-      setMessage('Seller KYC must be fully verified before moving on.')
+    if (currentStep === 3 && sellerKyc.status === 'incomplete') {
+      setMessage('Seller KYC must have at least partial verification before moving on.')
       return
     }
 
@@ -691,22 +691,6 @@ function App() {
           <p>Create one deal room per asset per person, upload evidence, and flag duplicate ownership or registry conflicts before payment.</p>
         </div>
       </header>
-
-      <section className="integration-panel">
-        <div>
-          <span className="eyebrow dark">eCitizen-ready identity layer</span>
-          <h2>Built for eCitizen SSO and seller KYC sync</h2>
-          <p>
-            The backend now isolates eCitizen logic behind an integration adapter. In demo mode it returns mock KYC;
-            with official credentials it can use the OAuth 2.0 / OpenID Connect authorization flow.
-          </p>
-        </div>
-        <div className="integration-status">
-          <span className={ecitizenStatus?.configured ? 'status-dot ready' : 'status-dot mock'} />
-          <strong>{ecitizenStatus?.configured ? 'Credentials configured' : 'Mock mode'}</strong>
-          <small>{ecitizenStatus?.authFlow || 'OAuth 2.0 Authorization Code with PKCE'}</small>
-        </div>
-      </section>
 
       <main className="workflow-shell">
         <div className="workflow-steps" aria-label="Deal room workflow steps">
