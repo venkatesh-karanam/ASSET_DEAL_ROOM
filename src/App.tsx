@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AssetType, DealRoom, GovernmentVerification, SellerKyc } from './types'
+import SystemStatusDashboard from './components/SystemStatusDashboard'
+import FailureManagement from './components/FailureManagement'
+import MessyDocumentIntelligence from './components/MessyDocumentIntelligence'
+import BehavioralIntelligence from './components/BehavioralIntelligence'
+import DataOwnershipTransparency from './components/DataOwnershipTransparency'
+import AuditImmutability from './components/AuditImmutability'
+import MarketUrgencyDashboard from './components/MarketUrgencyDashboard'
 
 const storageKey = 'dealroom-ke-rooms'
 const ownersKey = 'dealroom-ke-owners'
@@ -687,10 +694,37 @@ function App() {
       <header className="hero">
         <div>
           <span className="eyebrow">DealRoom KE</span>
-          <h1>A Kenyan pre-payment verification room for land & vehicles</h1>
-          <p>Create one deal room per asset per person, upload evidence, and flag duplicate ownership or registry conflicts before payment.</p>
+          <h1>Kenya's Trust Operating System for High-Value Transactions</h1>
+          <p>Land, vehicles, equipment, and assets worth KSh 2.1 billion are lost to fraud annually. DealRoom KE provides institutional-grade verification, fraud prevention, and legal admissibility for Kenya's asset transaction market.</p>
         </div>
       </header>
+
+      <SystemStatusDashboard />
+
+      <MarketUrgencyDashboard />
+
+      <FailureManagement />
+
+      <MessyDocumentIntelligence
+        uploadedFiles={evidenceDocuments}
+        onAnalysisComplete={(analysis) => console.log('Document analysis complete:', analysis)}
+      />
+
+      <BehavioralIntelligence
+        sellerName={sellerName}
+        sellerPhone={sellerPhone}
+        buyerName={buyerName}
+        communicationLog={[]} // Would be populated from actual chat logs
+        paymentMethod="" // Would be set when payment method is chosen
+        urgencyLevel={0} // Would be calculated from user behavior
+      />
+
+      <DataOwnershipTransparency />
+
+      <AuditImmutability
+        dealRoomId={undefined} // Would be set for existing rooms
+        documents={evidenceDocuments}
+      />
 
       <main className="workflow-shell">
         <div className="workflow-steps" aria-label="Deal room workflow steps">

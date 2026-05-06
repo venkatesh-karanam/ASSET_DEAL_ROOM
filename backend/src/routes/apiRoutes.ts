@@ -351,4 +351,33 @@ router.get('/audit-logs', authMiddleware, roleMiddleware('police', 'intelligence
   res.json(logs)
 })
 
+// System Status Routes
+router.get('/integrations/status', (_req: AuthRequest, res: Response) => {
+  // Mock integration status - in real implementation, check actual connections
+  res.json({
+    ardhi: { connected: true },
+    ntsa: { connected: true },
+    kra: { connected: true },
+    ecitizen: { configured: true },
+    lastSync: new Date().toISOString()
+  })
+})
+
+router.get('/audit/verification-events', authMiddleware, (req: AuthRequest, res: Response) => {
+  const limit = parseInt(req.query.limit as string) || 10
+  const allLogs = db.getAuditLogs({})
+  const verificationLogs = allLogs
+    .filter(log => log.action.includes('verify') || log.action.includes('check') || log.action.includes('registry'))
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, limit)
+    .map(log => ({
+      timestamp: log.timestamp.toISOString(),
+      action: log.action,
+      status: log.changes?.status === 'success' ? 'success' : log.changes?.error ? 'error' : 'warning',
+      details: `${log.resourceType}: ${log.resourceId}`
+    }))
+
+  res.json(verificationLogs)
+})
+
 export default router
