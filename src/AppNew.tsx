@@ -59,6 +59,8 @@ function App() {
   const [inspectionNotes, setInspectionNotes] = useState(false)
   const [paymentMilestone, setPaymentMilestone] = useState(false)
   const [message, setMessage] = useState('')
+  const [currentStep, setCurrentStep] = useState(1)
+  const totalSteps = 5
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(rooms))
@@ -94,6 +96,52 @@ function App() {
     const conflict = activeConflict ? 'Conflict detected: duplicate asset room exists.' : ''
     return conflict || 'No obvious conflict detected yet.'
   }, [activeConflict, buyerName, identifier, sellerName])
+
+  const validateStep = (step: number): boolean => {
+    switch (step) {
+      case 1:
+        return !!identifier.trim()
+      case 2:
+        return !!buyerName.trim() && !!sellerName.trim() && !!sellerPhone.trim()
+      case 3:
+        return true // Official checks are optional
+      case 4:
+        return true // Evidence checklist is optional
+      case 5:
+        return true // Review step
+      default:
+        return false
+    }
+  }
+
+  const handleNext = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => Math.min(prev + 1, totalSteps))
+    } else {
+      setMessage('Please fill in all required fields for this step.')
+    }
+  }
+
+  const handlePrevious = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1))
+  }
+
+  const resetForm = () => {
+    setAssetType('land')
+    setIdentifier('')
+    setTitle('')
+    setBuyerName('')
+    setSellerName('')
+    setSellerPhone('')
+    setChecked(initialChecks)
+    setIdentityProof(false)
+    setAuthorityProof(false)
+    setSupportingDocs(false)
+    setInspectionNotes(false)
+    setPaymentMilestone(false)
+    setMessage('')
+    setCurrentStep(1)
+  }
 
   const getRoomLink = (room: DealRoom) => `${window.location.origin}/#room:${room.id}`
 
@@ -170,6 +218,7 @@ function App() {
     const roomLink = getRoomLink(newRoom)
     setMessage(`Deal room created for ${newRoom.title}. Invite link: ${roomLink}`)
     window.location.hash = `room:${newRoom.id}`
+    resetForm()
   }
 
   const renderRoomList = () => (
@@ -289,109 +338,171 @@ function App() {
           <>
             <section className="panel">
               <h2>Create a new asset deal room</h2>
+              <div className="step-indicator">
+                <div className="steps">
+                  {[1, 2, 3, 4, 5].map(step => (
+                    <div key={step} className={`step ${currentStep >= step ? 'active' : ''}`}>
+                      {step}
+                    </div>
+                  ))}
+                </div>
+                <div className="step-labels">
+                  <span>Asset Details</span>
+                  <span>Parties</span>
+                  <span>Official Checks</span>
+                  <span>Evidence</span>
+                  <span>Review</span>
+                </div>
+              </div>
+
               <form onSubmit={handleSubmit} className="form-grid">
-                <label>
-                  Asset type
-                  <select value={assetType} onChange={(event) => setAssetType(event.target.value as AssetType)}>
-                    <option value="land">Land</option>
-                    <option value="car">Car</option>
-                  </select>
-                </label>
+                {currentStep === 1 && (
+                  <>
+                    <label>
+                      Asset type
+                      <select value={assetType} onChange={(event) => setAssetType(event.target.value as AssetType)}>
+                        <option value="land">Land</option>
+                        <option value="car">Car</option>
+                      </select>
+                    </label>
 
-                <label>
-                  {assetLabels[assetType]}
-                  <input value={identifier} onChange={(event) => setIdentifier(event.target.value)} placeholder="e.g. LR.12345/678" />
-                </label>
+                    <label>
+                      {assetLabels[assetType]}
+                      <input value={identifier} onChange={(event) => setIdentifier(event.target.value)} placeholder="e.g. LR.12345/678" required />
+                    </label>
 
-                <label>
-                  Deal room title
-                  <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Optional custom title" />
-                </label>
+                    <label>
+                      Deal room title
+                      <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Optional custom title" />
+                    </label>
+                  </>
+                )}
 
-                <label>
-                  Buyer name
-                  <input value={buyerName} onChange={(event) => setBuyerName(event.target.value)} placeholder="Buyer name" />
-                </label>
-                <label>
-                  Seller name
-                  <input value={sellerName} onChange={(event) => setSellerName(event.target.value)} placeholder="Seller name" />
-                </label>
-                <label>
-                  Seller phone
-                  <input value={sellerPhone} onChange={(event) => setSellerPhone(event.target.value)} placeholder="Seller phone" />
-                </label>
+                {currentStep === 2 && (
+                  <>
+                    <label>
+                      Buyer name
+                      <input value={buyerName} onChange={(event) => setBuyerName(event.target.value)} placeholder="Buyer name" required />
+                    </label>
+                    <label>
+                      Seller name
+                      <input value={sellerName} onChange={(event) => setSellerName(event.target.value)} placeholder="Seller name" required />
+                    </label>
+                    <label>
+                      Seller phone
+                      <input value={sellerPhone} onChange={(event) => setSellerPhone(event.target.value)} placeholder="Seller phone" required />
+                    </label>
+                  </>
+                )}
 
-                <div className="checklist-card">
-                  <h3>Official check workflow</h3>
-                  {assetType === 'land' ? (
+                {currentStep === 3 && (
+                  <div className="checklist-card">
+                    <h3>Official check workflow</h3>
+                    {assetType === 'land' ? (
+                      <label className="checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={checked.ardhiSearch}
+                          onChange={(event) => setChecked({ ...checked, ardhiSearch: event.target.checked })}
+                        />
+                        Upload Ardhisasa search evidence
+                      </label>
+                    ) : (
+                      <label className="checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={checked.ntsaRecord}
+                          onChange={(event) => setChecked({ ...checked, ntsaRecord: event.target.checked })}
+                        />
+                        Upload NTSA/eCitizen record evidence
+                      </label>
+                    )}
                     <label className="checkbox-row">
                       <input
                         type="checkbox"
-                        checked={checked.ardhiSearch}
-                        onChange={(event) => setChecked({ ...checked, ardhiSearch: event.target.checked })}
+                        checked={checked.sellerId}
+                        onChange={(event) => setChecked({ ...checked, sellerId: event.target.checked })}
                       />
-                      Upload Ardhisasa search evidence
+                      Seller identity proof uploaded
                     </label>
-                  ) : (
                     <label className="checkbox-row">
                       <input
                         type="checkbox"
-                        checked={checked.ntsaRecord}
-                        onChange={(event) => setChecked({ ...checked, ntsaRecord: event.target.checked })}
+                        checked={checked.sellerAuthority}
+                        onChange={(event) => setChecked({ ...checked, sellerAuthority: event.target.checked })}
                       />
-                      Upload NTSA/eCitizen record evidence
+                      Seller authority proof uploaded
                     </label>
+                  </div>
+                )}
+
+                {currentStep === 4 && (
+                  <div className="checklist-card">
+                    <h3>Evidence checklist</h3>
+                    <label className="checkbox-row">
+                      <input type="checkbox" checked={identityProof} onChange={(event) => setIdentityProof(event.target.checked)} />
+                      ID selfie match / identity proof collected
+                    </label>
+                    <label className="checkbox-row">
+                      <input type="checkbox" checked={authorityProof} onChange={(event) => setAuthorityProof(event.target.checked)} />
+                      Seller authority documents collected
+                    </label>
+                    <label className="checkbox-row">
+                      <input type="checkbox" checked={supportingDocs} onChange={(event) => setSupportingDocs(event.target.checked)} />
+                      Supporting documents uploaded
+                    </label>
+                    <label className="checkbox-row">
+                      <input type="checkbox" checked={inspectionNotes} onChange={(event) => setInspectionNotes(event.target.checked)} />
+                      Inspection or vehicle condition notes completed
+                    </label>
+                    <label className="checkbox-row">
+                      <input type="checkbox" checked={paymentMilestone} onChange={(event) => setPaymentMilestone(event.target.checked)} />
+                      Payment milestone and buyer instruction recorded
+                    </label>
+                  </div>
+                )}
+
+                {currentStep === 5 && (
+                  <div className="review-section">
+                    <h3>Review and Create Deal Room</h3>
+                    <div className="review-item">
+                      <strong>Asset:</strong> {assetType.toUpperCase()} - {identifier || 'Not specified'}
+                    </div>
+                    <div className="review-item">
+                      <strong>Title:</strong> {title || `${assetType === 'land' ? 'Title' : 'Reg No.'} ${identifier}`}
+                    </div>
+                    <div className="review-item">
+                      <strong>Buyer:</strong> {buyerName}
+                    </div>
+                    <div className="review-item">
+                      <strong>Seller:</strong> {sellerName} ({sellerPhone})
+                    </div>
+                    <div className="status-card">
+                      <strong>Conflict check</strong>
+                      <p>{riskSummary}</p>
+                      {activeConflict && <p className="danger">{activeConflict}</p>}
+                    </div>
+                  </div>
+                )}
+
+                <div className="form-navigation">
+                  {currentStep > 1 && (
+                    <button type="button" className="secondary" onClick={handlePrevious}>
+                      Previous
+                    </button>
                   )}
-                  <label className="checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={checked.sellerId}
-                      onChange={(event) => setChecked({ ...checked, sellerId: event.target.checked })}
-                    />
-                    Seller identity proof uploaded
-                  </label>
-                  <label className="checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={checked.sellerAuthority}
-                      onChange={(event) => setChecked({ ...checked, sellerAuthority: event.target.checked })}
-                    />
-                    Seller authority proof uploaded
-                  </label>
+                  {currentStep < totalSteps ? (
+                    <button type="button" className="primary" onClick={handleNext}>
+                      Next
+                    </button>
+                  ) : (
+                    <button type="submit" className="primary">
+                      Create deal room
+                    </button>
+                  )}
                 </div>
-
-                <div className="checklist-card">
-                  <h3>Evidence checklist</h3>
-                  <label className="checkbox-row">
-                    <input type="checkbox" checked={identityProof} onChange={(event) => setIdentityProof(event.target.checked)} />
-                    ID selfie match / identity proof collected
-                  </label>
-                  <label className="checkbox-row">
-                    <input type="checkbox" checked={authorityProof} onChange={(event) => setAuthorityProof(event.target.checked)} />
-                    Seller authority documents collected
-                  </label>
-                  <label className="checkbox-row">
-                    <input type="checkbox" checked={supportingDocs} onChange={(event) => setSupportingDocs(event.target.checked)} />
-                    Supporting documents uploaded
-                  </label>
-                  <label className="checkbox-row">
-                    <input type="checkbox" checked={inspectionNotes} onChange={(event) => setInspectionNotes(event.target.checked)} />
-                    Inspection or vehicle condition notes completed
-                  </label>
-                  <label className="checkbox-row">
-                    <input type="checkbox" checked={paymentMilestone} onChange={(event) => setPaymentMilestone(event.target.checked)} />
-                    Payment milestone and buyer instruction recorded
-                  </label>
-                </div>
-
-                <button type="submit" className="primary">Create deal room</button>
               </form>
               {message && <div className="notice">{message}</div>}
-              <div className="status-card">
-                <strong>Conflict check</strong>
-                <p>{riskSummary}</p>
-                {activeConflict && <p className="danger">{activeConflict}</p>}
-              </div>
             </section>
 
             {renderRoomList()}
