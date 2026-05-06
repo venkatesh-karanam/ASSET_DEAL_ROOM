@@ -77,6 +77,24 @@ interface BackendDealRoom {
   sellerKyc?: SellerKyc
 }
 
+interface ECitizenStatus {
+  configured: boolean
+  mode: 'mock' | 'ready_for_oidc'
+  authFlow: string
+  requiredCredentials: string[]
+}
+
+interface ECitizenKycProfile {
+  idNumber: string
+  kraPin: string
+  firstName: string
+  lastName: string
+  mobileNumber: string
+  mobileVerified: boolean
+  accountType: string
+  source: 'mock' | 'ecitizen'
+}
+
 function mapBackendRoom(room: BackendDealRoom): DealRoom {
   return {
     id: room.id,
@@ -193,6 +211,8 @@ function App() {
   const [backendToken, setBackendToken] = useState<string | null>(null)
   const [backendOnline, setBackendOnline] = useState(false)
   const [loadingRooms, setLoadingRooms] = useState(true)
+  const [ecitizenStatus, setEcitizenStatus] = useState<ECitizenStatus | null>(null)
+  const [ecitizenLoading, setEcitizenLoading] = useState(false)
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(rooms))
@@ -204,9 +224,15 @@ function App() {
     async function loadRoomsFromBackend() {
       try {
         const token = await loginDemoCitizen()
-        const response = await fetch(`${apiBaseUrl}/deal-rooms`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        const [response, statusResponse] = await Promise.all([
+          fetch(`${apiBaseUrl}/deal-rooms`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${apiBaseUrl}/integrations/ecitizen/status`),
+        ])
+        if (statusResponse.ok) {
+          setEcitizenStatus((await statusResponse.json()) as ECitizenStatus)
+        }
         if (!response.ok) throw new Error('Failed to load deal rooms')
         const data = (await response.json()) as BackendDealRoom[]
         if (!active) return
@@ -216,6 +242,12 @@ function App() {
       } catch {
         if (!active) return
         setBackendOnline(false)
+        setEcitizenStatus({
+          configured: false,
+          mode: 'mock',
+          authFlow: 'OAuth 2.0 Authorization Code with PKCE',
+          requiredCredentials: ['ECITIZEN_CLIENT_ID', 'ECITIZEN_CLIENT_SECRET', 'ECITIZEN_REDIRECT_URI'],
+        })
         setMessage('Backend is not running, so this session is using browser storage.')
       } finally {
         if (active) setLoadingRooms(false)
@@ -231,6 +263,41 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(ownersKey, JSON.stringify(assetOwners))
   }, [assetOwners])
+
+  const syncFromECitizen = async () => {
+    if (!sellerName.trim()) {
+      setMessage('Enter the seller name before syncing eCitizen KYC.')
+      return
+    }
+
+    setEcitizenLoading(true)
+    try {
+      if (!backendToken) throw new Error('Backend unavailable')
+      const response = await fetch(`${apiBaseUrl}/integrations/ecitizen/mock-kyc`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${backendToken}`,
+        },
+        body: JSON.stringify({ sellerName, sellerPhone }),
+      })
+      if (!response.ok) throw new Error('eCitizen KYC sync failed')
+      const profile = (await response.json()) as ECitizenKycProfile
+      setSellerIdNumber(profile.idNumber)
+      setSellerKraPin(profile.kraPin)
+      setSellerPhone(profile.mobileNumber)
+      setSellerPhoneVerified(profile.mobileVerified)
+      setMessage(`eCitizen ${profile.source} KYC synced for ${profile.firstName} ${profile.lastName}.`)
+    } catch {
+      setSellerIdNumber('12345678')
+      setSellerKraPin('A123456789B')
+      setSellerPhone((prev) => prev || '254711000000')
+      setSellerPhoneVerified(true)
+      setMessage('Using local eCitizen mock KYC because the backend sync is unavailable.')
+    } finally {
+      setEcitizenLoading(false)
+    }
+  }
 
   const activeConflict = useMemo(() => {
     const existing = rooms.find(
@@ -513,6 +580,22 @@ function App() {
         </div>
       </header>
 
+      <section className="integration-panel">
+        <div>
+          <span className="eyebrow dark">eCitizen-ready identity layer</span>
+          <h2>Built for eCitizen SSO and seller KYC sync</h2>
+          <p>
+            The backend now isolates eCitizen logic behind an integration adapter. In demo mode it returns mock KYC;
+            with official credentials it can use the OAuth 2.0 / OpenID Connect authorization flow.
+          </p>
+        </div>
+        <div className="integration-status">
+          <span className={ecitizenStatus?.configured ? 'status-dot ready' : 'status-dot mock'} />
+          <strong>{ecitizenStatus?.configured ? 'Credentials configured' : 'Mock mode'}</strong>
+          <small>{ecitizenStatus?.authFlow || 'OAuth 2.0 Authorization Code with PKCE'}</small>
+        </div>
+      </section>
+
       <main className="workflow-shell">
         <div className="workflow-steps" aria-label="Deal room workflow steps">
           {workflowSteps.map((step, index) => (
@@ -582,6 +665,9 @@ function App() {
                 </div>
                 <span className={`kyc-badge ${sellerKyc.status}`}>{sellerKyc.score}%</span>
               </div>
+              <button type="button" className="secondary integration-action" onClick={syncFromECitizen} disabled={ecitizenLoading}>
+                {ecitizenLoading ? 'Syncing eCitizen...' : 'Sync seller KYC from eCitizen'}
+              </button>
               <label>
                 <span>Seller ID number</span>
                 <input value={sellerIdNumber} onChange={(event) => setSellerIdNumber(event.target.value)} placeholder="e.g. 12345678" />

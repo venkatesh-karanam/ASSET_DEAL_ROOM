@@ -4,6 +4,7 @@ import { authMiddleware, roleMiddleware, generateToken, AuthRequest } from '../m
 import { auditLogger } from '../services/auditService'
 import { fraudDetectionEngine } from '../services/fraudDetectionService'
 import { verifyWithGovernment } from '../integrations/governmentApis'
+import { ecitizenIntegration } from '../integrations/ecitizen'
 import {
   isRole,
   isStatus,
@@ -101,6 +102,37 @@ router.post('/auth/login', async (req: AuthRequest, res: Response) => {
 })
 
 // Deal Room Routes
+router.get('/integrations/ecitizen/status', (_req: AuthRequest, res: Response) => {
+  res.json(ecitizenIntegration.getStatus())
+})
+
+router.get('/integrations/ecitizen/authorize-url', (_req: AuthRequest, res: Response) => {
+  res.json(ecitizenIntegration.createAuthorizationRequest())
+})
+
+router.post('/integrations/ecitizen/mock-kyc', authMiddleware, (req: AuthRequest, res: Response) => {
+  const sellerName = normalizeRequiredString(req.body.sellerName)
+  const sellerPhone = normalizeRequiredString(req.body.sellerPhone) || ''
+
+  if (!sellerName) {
+    return res.status(400).json({ error: 'sellerName is required' })
+  }
+
+  const profile = ecitizenIntegration.mockSellerKyc(sellerName, sellerPhone)
+  auditLogger.log({
+    userId: req.user?.id || 'anonymous',
+    agency: req.user?.agency || 'Citizen',
+    action: 'ecitizen_mock_kyc_synced',
+    resourceType: 'seller_kyc',
+    resourceId: profile.idNumber,
+    changes: profile as unknown as Record<string, unknown>,
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  })
+
+  res.json(profile)
+})
+
 router.post('/government/verify', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const assetType = normalizeAssetType(req.body.assetType)
