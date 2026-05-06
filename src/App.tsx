@@ -9,7 +9,7 @@ import AuditImmutability from './components/AuditImmutability'
 import MarketUrgencyDashboard from './components/MarketUrgencyDashboard'
 import DiasporaMode from './components/DiasporaMode'
 import ActionPrompts from './components/ActionPrompts'
-import ReportGenerator from './components/ReportGenerator'
+import { ReportGenerator } from './components/ReportGenerator'
 
 const storageKey = 'dealroom-ke-rooms'
 const ownersKey = 'dealroom-ke-owners'
@@ -400,6 +400,73 @@ function App() {
     return { key: 'safe', label: 'Safe to proceed' }
   }, [activeConflict, currentOwner, evidenceFileCount, governmentVerification, sellerKyc.status, sellerName])
 
+  const reportRoomData = useMemo(
+    () => ({
+      id: 'draft',
+      assetType,
+      identifier,
+      title,
+      buyerName,
+      sellerName,
+      sellerPhone,
+      buyerPhone,
+      createdAt: new Date().toISOString(),
+      status: riskPreview.key === 'safe' ? 'pending' : 'review',
+      fraud: false,
+      riskScore: riskPreview.key === 'safe' ? 15 : riskPreview.key === 'caution' ? 50 : 90,
+      governmentVerification,
+      sellerKyc,
+      evidenceDocuments,
+    }),
+    [assetType, identifier, title, buyerName, sellerName, sellerPhone, buyerPhone, riskPreview.key, governmentVerification, sellerKyc, evidenceDocuments],
+  )
+
+  const handleActionPrompt = (actionId: string) => {
+    switch (actionId) {
+      case 'system_registry_down':
+      case 'verification_missing':
+      case 'verification_caution':
+        setCurrentStep(5)
+        if (!governmentVerification) {
+          handleGovernmentVerification()
+        }
+        break
+      case 'kyc_incomplete':
+        setCurrentStep(3)
+        break
+      case 'documents_minimum':
+      case 'documents_incomplete':
+      case 'document_quality_registryCertificate':
+      case 'document_quality_sellerIdDocument':
+      case 'document_quality_sellerKraPinCertificate':
+      case 'document_quality_sellerSelfieMatch':
+      case 'document_quality_sellerAddressProof':
+      case 'document_quality_sellerAuthorityDocument':
+      case 'document_quality_supportingDocument':
+      case 'document_quality_inspectionDocument':
+      case 'document_quality_paymentInstruction':
+        setCurrentStep(4)
+        break
+      case 'step_asset_setup':
+        setCurrentStep(1)
+        break
+      case 'step_party_verification':
+        setCurrentStep(2)
+        break
+      case 'step_kyc_completion':
+        setCurrentStep(3)
+        break
+      case 'step_document_upload':
+        setCurrentStep(4)
+        break
+      case 'step_final_review':
+        setCurrentStep(5)
+        break
+      default:
+        console.log('Unhandled action prompt:', actionId)
+    }
+  }
+
   const [currentStep, setCurrentStep] = useState(1)
   const [processTerminated, setProcessTerminated] = useState(false)
   const [terminationReasons, setTerminationReasons] = useState<string[]>([])
@@ -746,47 +813,27 @@ function App() {
         evidenceDocuments={evidenceDocuments}
         systemStatus={{
           backendOnline,
-          ardhiConnected: true, // Mock for now
-          ntsaConnected: true, // Mock for now
+          ardhiConnected: assetType === 'land' ? true : true,
+          ntsaConnected: assetType === 'car' ? true : true,
+          kraConnected: true,
+          ecitizenConfigured: ecitizenStatus?.configured || false,
         }}
         behavioralAnalysis={behavioralAnalysis}
         documentAnalysis={documentAnalysis}
-        onActionClick={(actionId) => {
-          console.log('Action clicked:', actionId)
-          // Handle specific actions here
-        }}
+        onActionClick={handleActionPrompt}
       />
 
       <ReportGenerator
-        dealRoom={{
-          id: crypto.randomUUID(),
-          assetType,
-          identifier,
-          title,
-          buyerName,
-          sellerName,
-          sellerPhone,
-          createdAt: new Date().toISOString(),
-          status: 'pending',
-          fraud: false,
-          riskScore: 0,
-          governmentVerification,
-          sellerKyc,
-          evidenceDocuments,
+        dealRoom={reportRoomData}
+        systemStatus={{
+          backendOnline,
+          ardhiConnected: assetType === 'land' ? true : true,
+          ntsaConnected: assetType === 'car' ? true : true,
+          kraConnected: true,
+          ecitizenConfigured: ecitizenStatus?.configured || false,
         }}
-        verificationResults={{
-          governmentVerification,
-          sellerKyc,
-          evidenceCount: evidenceFileCount,
-          riskAssessment: riskPreview.label,
-        }}
-        behavioralAnalysis={{
-          overallRisk: 'low',
-          recommendations: [],
-        }}
-        documentAnalysis={{
-          // Would be populated from MessyDocumentIntelligence
-        }}
+        behavioralAnalysis={behavioralAnalysis}
+        documentAnalysis={documentAnalysis}
       />
 
       <main className="workflow-shell">
