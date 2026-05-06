@@ -7,6 +7,7 @@ import BehavioralIntelligence from './components/BehavioralIntelligence'
 import DataOwnershipTransparency from './components/DataOwnershipTransparency'
 import AuditImmutability from './components/AuditImmutability'
 import MarketUrgencyDashboard from './components/MarketUrgencyDashboard'
+import DiasporaMode from './components/DiasporaMode'
 
 const storageKey = 'dealroom-ke-rooms'
 const ownersKey = 'dealroom-ke-owners'
@@ -724,6 +725,12 @@ function App() {
       <AuditImmutability
         dealRoomId={undefined} // Would be set for existing rooms
         documents={evidenceDocuments}
+      />
+
+      <DiasporaMode
+        buyerLocation="London, UK" // Would be detected or set by user
+        sellerLocation="Nairobi, Kenya"
+        dealAmount={2500000} // Would be set from deal
       />
 
       <main className="workflow-shell">
