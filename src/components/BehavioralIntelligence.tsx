@@ -22,6 +22,7 @@ interface BehavioralIntelligenceProps {
   communicationLog?: string[]
   paymentMethod?: string
   urgencyLevel?: number
+  onAnalysisComplete?: (analysis: RelationshipRisk) => void
 }
 
 export default function BehavioralIntelligence({
@@ -31,7 +32,8 @@ export default function BehavioralIntelligence({
   dealAmount,
   communicationLog = [],
   paymentMethod,
-  urgencyLevel = 0
+  urgencyLevel = 0,
+  onAnalysisComplete
 }: BehavioralIntelligenceProps) {
   const [riskAnalysis, setRiskAnalysis] = useState<RelationshipRisk | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
@@ -145,6 +147,11 @@ export default function BehavioralIntelligence({
       }
 
       setRiskAnalysis({
+        indicators,
+        overallRisk,
+        recommendations
+      })
+      onAnalysisComplete?.({
         indicators,
         overallRisk,
         recommendations

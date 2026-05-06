@@ -8,6 +8,8 @@ import DataOwnershipTransparency from './components/DataOwnershipTransparency'
 import AuditImmutability from './components/AuditImmutability'
 import MarketUrgencyDashboard from './components/MarketUrgencyDashboard'
 import DiasporaMode from './components/DiasporaMode'
+import ActionPrompts from './components/ActionPrompts'
+import ReportGenerator from './components/ReportGenerator'
 
 const storageKey = 'dealroom-ke-rooms'
 const ownersKey = 'dealroom-ke-owners'
@@ -223,6 +225,11 @@ function App() {
   const [loadingRooms, setLoadingRooms] = useState(true)
   const [ecitizenStatus, setEcitizenStatus] = useState<ECitizenStatus | null>(null)
   const [ecitizenLoading, setEcitizenLoading] = useState(false)
+  const [behavioralAnalysis, setBehavioralAnalysis] = useState({
+    overallRisk: 'low' as 'low' | 'medium' | 'high' | 'critical',
+    recommendations: [] as string[],
+  })
+  const [documentAnalysis, setDocumentAnalysis] = useState<Record<string, any>>({})
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(rooms))
@@ -706,7 +713,7 @@ function App() {
 
       <MessyDocumentIntelligence
         uploadedFiles={evidenceDocuments}
-        onAnalysisComplete={(analysis) => console.log('Document analysis complete:', analysis)}
+        onAnalysisComplete={(analysis) => setDocumentAnalysis(analysis)}
       />
 
       <BehavioralIntelligence
@@ -716,6 +723,7 @@ function App() {
         communicationLog={[]} // Would be populated from actual chat logs
         paymentMethod="" // Would be set when payment method is chosen
         urgencyLevel={0} // Would be calculated from user behavior
+        onAnalysisComplete={(analysis) => setBehavioralAnalysis(analysis)}
       />
 
       <DataOwnershipTransparency />
@@ -729,6 +737,56 @@ function App() {
         buyerLocation="London, UK" // Would be detected or set by user
         sellerLocation="Nairobi, Kenya"
         dealAmount={2500000} // Would be set from deal
+      />
+
+      <ActionPrompts
+        currentStep={currentStep}
+        sellerKyc={sellerKyc}
+        governmentVerification={governmentVerification}
+        evidenceDocuments={evidenceDocuments}
+        systemStatus={{
+          backendOnline,
+          ardhiConnected: true, // Mock for now
+          ntsaConnected: true, // Mock for now
+        }}
+        behavioralAnalysis={behavioralAnalysis}
+        documentAnalysis={documentAnalysis}
+        onActionClick={(actionId) => {
+          console.log('Action clicked:', actionId)
+          // Handle specific actions here
+        }}
+      />
+
+      <ReportGenerator
+        dealRoom={{
+          id: crypto.randomUUID(),
+          assetType,
+          identifier,
+          title,
+          buyerName,
+          sellerName,
+          sellerPhone,
+          createdAt: new Date().toISOString(),
+          status: 'pending',
+          fraud: false,
+          riskScore: 0,
+          governmentVerification,
+          sellerKyc,
+          evidenceDocuments,
+        }}
+        verificationResults={{
+          governmentVerification,
+          sellerKyc,
+          evidenceCount: evidenceFileCount,
+          riskAssessment: riskPreview.label,
+        }}
+        behavioralAnalysis={{
+          overallRisk: 'low',
+          recommendations: [],
+        }}
+        documentAnalysis={{
+          // Would be populated from MessyDocumentIntelligence
+        }}
       />
 
       <main className="workflow-shell">
