@@ -201,6 +201,8 @@ function App() {
   const [identifier, setIdentifier] = useState('')
   const [title, setTitle] = useState('')
   const [buyerName, setBuyerName] = useState('')
+  const [buyerPhone, setBuyerPhone] = useState('')
+  const [buyerPhoneVerified, setBuyerPhoneVerified] = useState(false)
   const [sellerName, setSellerName] = useState('')
   const [sellerPhone, setSellerPhone] = useState('')
   const [sellerIdNumber, setSellerIdNumber] = useState('')
@@ -342,6 +344,7 @@ function App() {
       validIdNumber,
       validKraPin,
       sellerPhoneVerified,
+      buyerPhoneVerified,
       idDocumentUploaded,
       kraPinCertificateUploaded,
       selfieMatchUploaded,
@@ -363,7 +366,7 @@ function App() {
       score,
       status,
     }
-  }, [evidenceDocuments, sellerIdNumber, sellerKraPin, sellerPhoneVerified])
+  }, [evidenceDocuments, sellerIdNumber, sellerKraPin, sellerPhoneVerified, buyerPhoneVerified])
 
   const evidenceFileCount = useMemo(
     () => Object.values(evidenceDocuments).filter(Boolean).length,
@@ -425,7 +428,7 @@ function App() {
       case 2:
         return Boolean(buyerName.trim() && sellerName.trim() && sellerPhone.trim() && sellerPhoneVerified)
       case 3:
-        return Boolean(sellerIdNumber.trim().length > 0 && sellerKraPin.trim().length > 0 && sellerPhoneVerified)
+        return Boolean(sellerIdNumber.trim().length > 0 && sellerKraPin.trim().length > 0 && buyerPhone.trim().length > 0 && buyerPhoneVerified)
       case 4:
         return evidenceFileCount >= 6
       case 5:
@@ -446,13 +449,8 @@ function App() {
       return
     }
 
-    if (currentStep === 3 && sellerKyc.status === 'incomplete') {
-      setMessage('Seller KYC must have at least partial verification before moving on.')
-      return
-    }
-
-    if (currentStep === 4 && evidenceFileCount < 9) {
-      setMessage('Upload all required evidence documents before the final review.')
+    if (currentStep === 4 && evidenceFileCount < 6) {
+      setMessage('Upload at least 6 evidence documents before the final review.')
       return
     }
 
@@ -796,8 +794,8 @@ function App() {
                 <>
                   <div className="kyc-header compact">
                     <div>
-                      <h3>Seller KYC</h3>
-                      <p>Verify seller identity and KRA before moving on.</p>
+                      <h3>Seller KYC & Buyer Verification</h3>
+                      <p>Verify seller identity and KRA, and confirm buyer contact information.</p>
                     </div>
                     <span className={`kyc-badge ${sellerKyc.status}`}>{sellerKyc.score}%</span>
                   </div>
@@ -812,15 +810,29 @@ function App() {
                     <span>KRA PIN</span>
                     <input value={sellerKraPin} onChange={(event) => setSellerKraPin(event.target.value.toUpperCase())} placeholder="A123456789B" />
                   </label>
+                  <label>
+                    <span>Buyer phone</span>
+                    <input value={buyerPhone} onChange={(event) => setBuyerPhone(event.target.value)} placeholder="+254 7XX XXX XXX" />
+                  </label>
+                  <label className={`verified-strip ${buyerPhoneVerified ? 'complete' : ''}`}>
+                    <input type="checkbox" checked={buyerPhoneVerified} onChange={(event) => setBuyerPhoneVerified(event.target.checked)} />
+                    <span>Buyer phone verified</span>
+                  </label>
                   <div className="kyc-confirmation">
-                    <span>Phone Verified</span>
-                    <strong>{sellerPhoneVerified ? 'Confirmed' : 'Pending'}</strong>
+                    <div>
+                      <span>Seller Phone</span>
+                      <strong>{sellerPhoneVerified ? 'Confirmed' : 'Pending'}</strong>
+                    </div>
+                    <div>
+                      <span>Buyer Phone</span>
+                      <strong>{buyerPhoneVerified ? 'Confirmed' : 'Pending'}</strong>
+                    </div>
                   </div>
                   <strong>Required KYC checks</strong>
                   <ul>
                     <li>{sellerKyc.idNumber ? 'ID number entered' : 'ID number missing'}</li>
                     <li>{sellerKyc.kraPin ? 'KRA PIN entered' : 'KRA PIN missing'}</li>
-                    <li>{sellerKyc.phoneVerified ? 'Phone verified' : 'Phone not verified'}</li>
+                    <li>{buyerPhoneVerified ? 'Buyer phone verified' : 'Buyer phone not verified'}</li>
                   </ul>
                 </>
               )}
