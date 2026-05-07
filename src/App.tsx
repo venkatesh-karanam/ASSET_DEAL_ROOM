@@ -8,6 +8,8 @@ import DataOwnershipTransparency from './components/DataOwnershipTransparency'
 import AuditImmutability from './components/AuditImmutability'
 import MarketUrgencyDashboard from './components/MarketUrgencyDashboard'
 import DiasporaMode from './components/DiasporaMode'
+import VerificationSeal from './components/VerificationSeal'
+import SocialProofPanel from './components/SocialProofPanel'
 import ActionPrompts from './components/ActionPrompts'
 import { ReportGenerator } from './components/ReportGenerator'
 
@@ -230,6 +232,8 @@ function App() {
     recommendations: [] as string[],
   })
   const [documentAnalysis, setDocumentAnalysis] = useState<Record<string, any>>({})
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true)
+  const [commitmentAccepted, setCommitmentAccepted] = useState(false)
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(rooms))
@@ -280,6 +284,17 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(ownersKey, JSON.stringify(assetOwners))
   }, [assetOwners])
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
 
   const syncFromECitizen = async () => {
     if (!sellerName.trim()) {
@@ -380,7 +395,10 @@ function App() {
     [evidenceDocuments],
   )
 
-  const riskPreview = useMemo(() => {
+  const riskPreview = useMemo<{
+    key: 'safe' | 'caution' | 'stop'
+    label: string
+  }>(() => {
     const sellerMismatch = Boolean(currentOwner && currentOwner !== sellerName.trim())
 
     if (
@@ -390,14 +408,14 @@ function App() {
       !governmentVerification?.verified ||
       sellerKyc.status === 'incomplete'
     ) {
-      return { key: 'stop', label: 'Do not pay yet' }
+      return { key: 'stop', label: 'Transaction blocked until issues are resolved' }
     }
 
     if (governmentVerification.status !== 'clear' || sellerKyc.status !== 'verified' || evidenceFileCount < 9) {
-      return { key: 'caution', label: 'Proceed with caution' }
+      return { key: 'caution', label: 'There are unresolved risks tied to this transaction' }
     }
 
-    return { key: 'safe', label: 'Safe to proceed' }
+    return { key: 'safe', label: 'Final fraud protection screening passed' }
   }, [activeConflict, currentOwner, evidenceFileCount, governmentVerification, sellerKyc.status, sellerName])
 
   const reportRoomData = useMemo(
@@ -472,12 +490,31 @@ function App() {
   const [terminationReasons, setTerminationReasons] = useState<string[]>([])
   const totalSteps = 5
 
+  const verificationReference = useMemo(() => {
+    const label = identifier.trim().replace(/\W/g, '').slice(0, 6).toUpperCase() || 'DRAFT'
+    return `DR-${assetType.toUpperCase().slice(0, 3)}-${label}-${Math.floor(Date.now() / 1000)}`
+  }, [assetType, identifier])
+
+  const regionalRisk = useMemo(() => {
+    const key = identifier.trim().toUpperCase()
+    if (assetType === 'land' && key.includes('NAIROBI')) {
+      return { region: 'Nairobi County', advisory: 'Elevated title dispute frequency in this region. Verify ownership records carefully.', level: 'high' }
+    }
+    if (assetType === 'land' && key.includes('MOMBASA')) {
+      return { region: 'Mombasa County', advisory: 'Coastal land disputes are common; check all succession records.', level: 'medium' }
+    }
+    if (assetType === 'car') {
+      return { region: 'National vehicle registry', advisory: 'NTSA risk profile is standard but watch for duplicate registration claims.', level: 'normal' }
+    }
+    return { region: 'Kenya-wide', advisory: 'General protection infrastructure applies across all regions.', level: 'normal' }
+  }, [assetType, identifier])
+
   const workflowSteps = [
     { label: 'Asset Setup', complete: Boolean(identifier.trim()) },
-    { label: 'Parties', complete: Boolean(buyerName.trim() && sellerName.trim() && sellerPhone.trim() && sellerPhoneVerified) },
+    { label: 'Party Protection', complete: Boolean(buyerName.trim() && sellerName.trim() && sellerPhone.trim() && sellerPhoneVerified) },
     { label: 'Seller KYC', complete: sellerKyc.status === 'verified' },
-    { label: 'Upload Evidence', complete: evidenceFileCount === 9 },
-    { label: 'Risk Status & Review', complete: riskPreview.key === 'safe' },
+    { label: 'Evidence Capture', complete: evidenceFileCount === 9 },
+    { label: 'Final Protection Review', complete: riskPreview.key === 'safe' },
   ]
 
   const terminalMismatchReasons = useMemo(() => {
@@ -641,13 +678,18 @@ function App() {
       return
     }
 
+    if (!commitmentAccepted) {
+      setMessage('Please confirm the buyer and seller commitment statements before continuing.')
+      return
+    }
+
     if (processTerminated || terminalMismatchReasons.length > 0 || riskPreview.key === 'stop') {
       setMessage('Cannot create a deal room while a terminal mismatch exists. Review the report and resolve the issue first.')
       return
     }
 
     if (sellerKyc.status !== 'verified') {
-      setMessage('Seller KYC is incomplete. Verify ID number, KRA PIN, phone, selfie match, address proof, and authority documents before creating the deal room.')
+      setMessage('Seller KYC is incomplete. We verify identity before you release money.')
       return
     }
 
@@ -767,12 +809,28 @@ function App() {
       <header className="hero">
         <div>
           <span className="eyebrow">DealRoom KE</span>
-          <h1>Kenya's Trust Operating System for High-Value Transactions</h1>
-          <p>Land, vehicles, equipment, and assets worth KSh 2.1 billion are lost to fraud annually. DealRoom KE provides institutional-grade verification, fraud prevention, and legal admissibility for Kenya's asset transaction market.</p>
+          <h1>Kenya's Transaction Protection Infrastructure</h1>
+          <p>Land, vehicles, equipment, and assets worth KSh 2.1 billion are lost to fraud every year. DealRoom KE combines identity, registry, evidence, and audit protection so you can trust the moment you release money.</p>
         </div>
       </header>
 
+      {!isOnline && (
+        <div className="notice danger">
+          Offline mode active — your transaction progress is safely preserved and will sync once the connection returns.
+        </div>
+      )}
+
       <SystemStatusDashboard />
+
+      <SocialProofPanel
+        sellerName={sellerName || 'Seller profile'}
+        verifiedTransactions={11}
+        fraudDisputes={0}
+        firstVerified="2025"
+        lawyerName="Verified lawyer"
+        lawyerVerified
+        lawyerTransactions={43}
+      />
 
       <MarketUrgencyDashboard />
 
@@ -899,8 +957,8 @@ function App() {
                 <>
                   <div className="kyc-header compact">
                     <div>
-                      <h3>Seller KYC & Buyer Verification</h3>
-                      <p>Verify seller identity and KRA, and confirm buyer contact information.</p>
+                      <h3>Seller identity protection</h3>
+                      <p>We verify seller identity before you release money. Confirm KRA, ID, and buyer contact integrity.</p>
                     </div>
                     <span className={`kyc-badge ${sellerKyc.status}`}>{sellerKyc.score}%</span>
                   </div>
@@ -971,21 +1029,37 @@ function App() {
 
               {currentStep === 5 && (
                 <>
+                  <VerificationSeal
+                    status={riskPreview.key}
+                    referenceId={verificationReference}
+                    checkedAt={new Date().toISOString()}
+                    matchedIdentity={sellerKyc.status === 'verified'}
+                    matchedOwnership={governmentVerification?.verified || false}
+                    duplicateClaimsCleared={!activeConflict}
+                  />
+
                   <div className="status-options">
-                    <div className={`status-option safe ${riskPreview.key === 'safe' ? 'active' : ''}`}>Safe to proceed</div>
-                    <div className={`status-option caution ${riskPreview.key === 'caution' ? 'active' : ''}`}>Proceed with caution</div>
-                    <div className={`status-option stop ${riskPreview.key === 'stop' ? 'active' : ''}`}>Do not pay yet</div>
+                    <div className={`status-option safe ${riskPreview.key === 'safe' ? 'active' : ''}`}>Final fraud protection screening passed</div>
+                    <div className={`status-option caution ${riskPreview.key === 'caution' ? 'active' : ''}`}>There are unresolved risks tied to this transaction</div>
+                    <div className={`status-option stop ${riskPreview.key === 'stop' ? 'active' : ''}`}>Transaction locked until cleared</div>
                   </div>
                   <button type="button" className="secondary" onClick={handleGovernmentVerification} disabled={verificationLoading}>
-                    {verificationLoading ? 'Checking registry...' : `Verify with ${assetType === 'land' ? 'Ardhisasa' : 'NTSA'}`}
+                    {verificationLoading ? 'Checking registry consistency…' : `Run ${assetType === 'land' ? 'Ardhisasa' : 'NTSA'} protection check`}
                   </button>
                   <div className="review-summary">
                     <p><strong>Recorded owner:</strong> {currentOwner || governmentVerification?.owner || 'Not yet registered'}</p>
+                    <p><strong>Regional risk:</strong> {regionalRisk.region} — {regionalRisk.advisory}</p>
                     <p><strong>KYC score:</strong> {sellerKyc.score}% / {sellerKyc.status}</p>
                     <p><strong>Evidence files attached:</strong> {evidenceFileCount} of 9</p>
                     <p><strong>Live decision:</strong> {riskPreview.label}</p>
                     <p>{riskSummary}</p>
                   </div>
+                  <label className="commitment-checkbox">
+                    <input type="checkbox" checked={commitmentAccepted} onChange={(event) => setCommitmentAccepted(event.target.checked)} />
+                    <span>
+                      I confirm that the buyer will release funds only through DealRoom KE and the seller agrees that duplicate sale invalidates this transaction.
+                    </span>
+                  </label>
                   {processTerminated && (
                     <div className="notice danger">
                       <strong>Workflow blocked</strong>

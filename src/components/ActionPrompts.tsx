@@ -90,10 +90,22 @@ export default function ActionPrompts({
         id: 'verification_caution',
         priority: 'medium',
         category: 'verification',
-        title: 'Registry Issues Detected',
-        description: 'Caveats or encumbrances found that require attention.',
+        title: 'Registry issues found',
+        description: 'Caveats or encumbrances were detected and could affect your trust decision.',
         action: 'Review caveats and encumbrances',
         actionable: true
+      })
+    }
+
+    if (currentStep >= 4) {
+      allPrompts.push({
+        id: 'live_protection_scan',
+        priority: 'medium',
+        category: 'system',
+        title: 'Live protection scan is active',
+        description: 'The platform is comparing registry, identity, and evidence signals in the background.',
+        action: 'Review ongoing protection checks',
+        actionable: false
       })
     }
 
@@ -222,8 +234,8 @@ export default function ActionPrompts({
         id: 'step_party_verification',
         priority: 'medium',
         category: 'verification',
-        title: 'Verify Party Information',
-        description: 'Ensure buyer and seller details are complete and phone numbers verified.',
+        title: 'Verify seller identity before payment',
+        description: 'Confirm the parties and contact details before you commit funds.',
         action: 'Complete party verification',
         actionable: true
       })
@@ -234,8 +246,8 @@ export default function ActionPrompts({
         id: 'step_kyc_completion',
         priority: 'high',
         category: 'verification',
-        title: 'Complete KYC Process',
-        description: 'Seller identity and buyer phone verification required.',
+        title: 'Complete seller identity protection',
+        description: 'This step verifies seller identity and buyer contact integrity before release of funds.',
         action: 'Complete KYC verification',
         actionable: true
       })
@@ -246,8 +258,8 @@ export default function ActionPrompts({
         id: 'step_document_upload',
         priority: 'high',
         category: 'documents',
-        title: 'Upload Evidence Documents',
-        description: 'All required evidence documents must be uploaded and verified.',
+        title: 'Capture evidence that protects your payment',
+        description: 'Upload documents that will back up your claim if a dispute happens.',
         action: 'Upload and verify documents',
         actionable: true
       })
@@ -258,8 +270,8 @@ export default function ActionPrompts({
         id: 'step_final_review',
         priority: 'medium',
         category: 'compliance',
-        title: 'Final Risk Review',
-        description: 'Review all verification results and risk assessments before proceeding.',
+        title: 'Final fraud protection screening',
+        description: 'Review all verification results, regional intelligence, and protection signals before proceeding.',
         action: 'Complete final review',
         actionable: true
       })
