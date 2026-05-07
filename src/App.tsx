@@ -517,6 +517,46 @@ function App() {
     { label: 'Final Protection Review', complete: riskPreview.key === 'safe' },
   ]
 
+  const completedStepCount = workflowSteps.filter((step) => step.complete).length
+  const workflowProgress = Math.round((completedStepCount / totalSteps) * 100)
+
+  const riskScore = useMemo(() => {
+    let score = 100
+    if (sellerKyc.status !== 'verified') score -= 28
+    if (governmentVerification?.status !== 'clear') score -= 30
+    score -= (9 - evidenceFileCount) * 4
+    if (activeConflict) score -= 20
+    if (governmentVerification?.status === 'blocked') score = 95
+    if (!governmentVerification) score -= 10
+    return Math.min(100, Math.max(0, score))
+  }, [sellerKyc.status, governmentVerification, evidenceFileCount, activeConflict])
+
+  const riskTriggers = useMemo(() => {
+    const triggers: string[] = []
+    if (sellerKyc.status !== 'verified') triggers.push('Seller KYC incomplete')
+    if (!governmentVerification) triggers.push('Registry verification not run')
+    if (governmentVerification?.status === 'blocked') triggers.push('Registry check blocked the transaction')
+    if (governmentVerification?.status === 'caution') triggers.push('Registry found caveats or encumbrances')
+    if (evidenceFileCount < 9) triggers.push('Missing evidence documents')
+    if (activeConflict) triggers.push('Duplicate asset / ownership conflict detected')
+    return triggers
+  }, [sellerKyc.status, governmentVerification, evidenceFileCount, activeConflict])
+
+  const lastVerifiedLabel = governmentVerification?.checkedAt
+    ? `Last verified ${new Date(governmentVerification.checkedAt).toLocaleString('en-KE')}`
+    : 'Not verified yet'
+
+  const liveStatusMessages = [
+    verificationLoading ? (assetType === 'land' ? 'Checking Ardhisasa…' : 'Checking NTSA…') : null,
+    governmentVerification ? lastVerifiedLabel : null,
+  ].filter(Boolean)
+
+  const verificationActions = {
+    paymentLocked: true,
+    fundsOnHold: true,
+    releaseEnabled: riskPreview.key === 'safe',
+  }
+
   const terminalMismatchReasons = useMemo(() => {
     const reasons: string[] = []
     if (activeConflict) {
@@ -895,10 +935,15 @@ function App() {
       />
 
       <main className="workflow-shell">
+        <div className="workflow-progress">
+          <div className="workflow-progress-meter" style={{ width: `${workflowProgress}%` }} />
+          <div className="workflow-progress-label">{workflowProgress}% complete</div>
+        </div>
+
         <div className="workflow-steps" aria-label="Deal room workflow steps">
           {workflowSteps.map((step, index) => (
-            <div key={step.label} className={`step-chip ${step.complete ? 'complete' : ''}`}>
-              <span>{index + 1}</span>
+            <div key={step.label} className={`step-chip ${step.complete ? 'complete' : currentStep === index + 1 ? 'active' : 'locked'}`}>
+              <span>{step.complete ? '✔' : index + 1}</span>
               <strong>{step.label}</strong>
             </div>
           ))}
@@ -961,6 +1006,13 @@ function App() {
                       <p>We verify seller identity before you release money. Confirm KRA, ID, and buyer contact integrity.</p>
                     </div>
                     <span className={`kyc-badge ${sellerKyc.status}`}>{sellerKyc.score}%</span>
+                  </div>
+                  <div className="kyc-status-chips">
+                    <span className={`status-chip ${sellerKyc.idDocumentUploaded ? 'pass' : 'pending'}`}>ID match</span>
+                    <span className={`status-chip ${sellerKyc.kraPin ? 'pass' : 'pending'}`}>PIN verified</span>
+                    <span className={`status-chip ${sellerPhoneVerified ? 'pass' : 'pending'}`}>Seller OTP</span>
+                    <span className={`status-chip ${buyerPhoneVerified ? 'pass' : 'pending'}`}>Buyer OTP</span>
+                    <span className={`status-chip ${sellerKyc.score >= 70 ? 'pass' : 'warning'}`}>Confidence {sellerKyc.score}%</span>
                   </div>
                   <button type="button" className="secondary integration-action" onClick={syncFromECitizen} disabled={ecitizenLoading}>
                     {ecitizenLoading ? 'Syncing eCitizen...' : 'Sync seller KYC from eCitizen'}
@@ -1029,6 +1081,19 @@ function App() {
 
               {currentStep === 5 && (
                 <>
+                  <div className="review-top">
+                    <div className="service-pill-group">
+                      <span className="service-pill eCitizen">eCitizen</span>
+                      <span className="service-pill kra">KRA</span>
+                      <span className="service-pill ntsa">NTSA</span>
+                      <span className="service-pill ardhisasa">Ardhisasa</span>
+                    </div>
+                    <div className="trust-summary-banner">
+                      <span>Reference {verificationReference}</span>
+                      <strong>{governmentVerification?.status === 'blocked' ? 'Action Required' : 'Protection check ready'}</strong>
+                    </div>
+                  </div>
+
                   <VerificationSeal
                     status={riskPreview.key}
                     referenceId={verificationReference}
@@ -1038,22 +1103,69 @@ function App() {
                     duplicateClaimsCleared={!activeConflict}
                   />
 
+                  <div className="live-checks">
+                    {liveStatusMessages.map((message) => (
+                      <span key={message} className="live-check-item">{message}</span>
+                    ))}
+                  </div>
+
                   <div className="status-options">
                     <div className={`status-option safe ${riskPreview.key === 'safe' ? 'active' : ''}`}>Final fraud protection screening passed</div>
                     <div className={`status-option caution ${riskPreview.key === 'caution' ? 'active' : ''}`}>There are unresolved risks tied to this transaction</div>
                     <div className={`status-option stop ${riskPreview.key === 'stop' ? 'active' : ''}`}>Transaction locked until cleared</div>
                   </div>
+
                   <button type="button" className="secondary" onClick={handleGovernmentVerification} disabled={verificationLoading}>
                     {verificationLoading ? 'Checking registry consistency…' : `Run ${assetType === 'land' ? 'Ardhisasa' : 'NTSA'} protection check`}
                   </button>
-                  <div className="review-summary">
-                    <p><strong>Recorded owner:</strong> {currentOwner || governmentVerification?.owner || 'Not yet registered'}</p>
-                    <p><strong>Regional risk:</strong> {regionalRisk.region} — {regionalRisk.advisory}</p>
-                    <p><strong>KYC score:</strong> {sellerKyc.score}% / {sellerKyc.status}</p>
-                    <p><strong>Evidence files attached:</strong> {evidenceFileCount} of 9</p>
-                    <p><strong>Live decision:</strong> {riskPreview.label}</p>
-                    <p>{riskSummary}</p>
+
+                  <div className="risk-summary-panel">
+                    <div className="risk-score-block">
+                      <div className="risk-score-badge">{riskScore}/100</div>
+                      <div>
+                        <strong>Risk action:</strong> {riskPreview.label}
+                        <p>{riskTriggers.length > 0 ? riskTriggers.join('; ') : 'No active risk triggers detected.'}</p>
+                      </div>
+                    </div>
+                    <div className="review-summary">
+                      <p><strong>Recorded owner:</strong> {currentOwner || governmentVerification?.owner || 'Not yet registered'}</p>
+                      <p><strong>Regional risk:</strong> {regionalRisk.region} — {regionalRisk.advisory}</p>
+                      <p><strong>KYC score:</strong> {sellerKyc.score}% / {sellerKyc.status}</p>
+                      <p><strong>Evidence files attached:</strong> {evidenceFileCount} of 9</p>
+                      <p><strong>Live decision:</strong> {riskPreview.label}</p>
+                      <p>{riskSummary}</p>
+                    </div>
                   </div>
+
+                  <div className="audit-panel">
+                    <h4>Audit timeline</h4>
+                    <ul>
+                      <li>08:12 — Seller phone verified through phone OTP.</li>
+                      <li>08:18 — Selfie and ID match scan completed.</li>
+                      <li>08:24 — Government registry check queued.</li>
+                      <li>08:29 — Evidence quality review passed.</li>
+                    </ul>
+                    {activeConflict && <p className="alert-text">⚠ {activeConflict}</p>}
+                  </div>
+
+                  <div className="payment-protection-card">
+                    <div>
+                      <strong>{verificationActions.fundsOnHold ? 'Funds on hold' : 'Payment ready'}</strong>
+                      <p>Payment is securely locked until the smart protection workflow confirms this deal is safe. If issues persist, keep the funds in escrow and escalate to a supported dispute process.</p>
+                    </div>
+                    <button type="button" className="secondary" disabled={!verificationActions.releaseEnabled}>
+                      {verificationActions.releaseEnabled ? 'Release payment' : 'Release when safe' }
+                    </button>
+                  </div>
+
+                  <div className="certificate-callout">
+                    <div>
+                      <strong>Verified certificate ready</strong>
+                      <p>Download the finalized verification certificate to keep as proof of a protected Kenyan asset deal.</p>
+                    </div>
+                    <button type="button" className="secondary">Download certificate</button>
+                  </div>
+
                   <label className="commitment-checkbox">
                     <input type="checkbox" checked={commitmentAccepted} onChange={(event) => setCommitmentAccepted(event.target.checked)} />
                     <span>

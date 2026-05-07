@@ -164,6 +164,24 @@ select {
   position: relative;
 }
 
+.workflow-progress {
+  margin-bottom: 1rem;
+}
+
+.workflow-progress-meter {
+  background: linear-gradient(135deg, #1d6b5e, #64b48a);
+  border-radius: 999px;
+  height: 0.75rem;
+  width: 0;
+  transition: width 0.4s ease;
+}
+
+.workflow-progress-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 0.55rem;
+}
+
 .workflow-steps::before {
   border-top: 2px dashed rgba(45, 101, 97, 0.75);
   content: '';
@@ -213,6 +231,25 @@ select {
 .step-chip.complete strong {
   border-color: rgba(20, 108, 67, 0.3);
   color: var(--kenya-green);
+}
+
+.step-chip.active span {
+  background: #0f5132;
+}
+
+.step-chip.active strong {
+  border-color: rgba(15, 81, 50, 0.12);
+  color: #134f45;
+}
+
+.step-chip.locked span {
+  background: rgba(45, 101, 97, 0.22);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.step-chip.locked strong {
+  background: rgba(255, 255, 255, 0.7);
+  color: rgba(70, 88, 91, 0.85);
 }
 
 .workflow-grid {
@@ -441,8 +478,190 @@ button.primary:hover {
   grid-template-columns: 1fr auto;
 }
 
-.kyc-confirmation,
-.verified-strip {
+.kyc-status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.9rem;
+}
+
+.status-chip {
+  border-radius: 999px;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.4rem 0.75rem;
+}
+
+.status-chip.pass {
+  background: var(--kenya-green);
+}
+
+.status-chip.warning {
+  background: #f59e0b;
+}
+
+.status-chip.pending {
+  background: rgba(45, 101, 97, 0.18);
+  color: #2d5f5c;
+}
+
+.review-top {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.service-pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.service-pill {
+  border-radius: 999px;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 0.45rem 0.8rem;
+}
+
+.service-pill.eCitizen { background: #124375; }
+.service-pill.kra { background: #1e3a8a; }
+.service-pill.ntsa { background: #0f5132; }
+.service-pill.ardhisasa { background: #975a16; }
+
+.trust-summary-banner {
+  align-items: flex-end;
+  background: rgba(240, 253, 244, 0.95);
+  border: 1px solid rgba(45, 101, 97, 0.18);
+  border-radius: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.95rem 1rem;
+}
+
+.live-checks {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1rem 0;
+}
+
+.live-check-item {
+  background: #f0fdf4;
+  border: 1px solid rgba(45, 101, 97, 0.18);
+  border-radius: 0.65rem;
+  color: var(--kenya-green);
+  display: inline-flex;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.92rem;
+}
+
+.risk-summary-panel {
+  display: grid;
+  gap: 0.95rem;
+  margin: 1rem 0;
+}
+
+.risk-score-block {
+  align-items: center;
+  background: #f0fdf4;
+  border: 1px solid rgba(20, 108, 67, 0.16);
+  border-radius: 0.75rem;
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+}
+
+.risk-score-badge {
+  align-items: center;
+  background: var(--kenya-green);
+  border-radius: 1rem;
+  color: white;
+  display: inline-flex;
+  font-size: 1.2rem;
+  font-weight: 800;
+  height: 3rem;
+  justify-content: center;
+  width: 3rem;
+}
+
+.audit-panel {
+  background: #fffdfa;
+  border: 1px solid rgba(250, 193, 193, 0.4);
+  border-radius: 0.85rem;
+  padding: 1rem 1.1rem;
+}
+
+.audit-panel h4 {
+  margin: 0 0 0.8rem;
+}
+
+.audit-panel ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.audit-panel li {
+  margin-bottom: 0.5rem;
+}
+
+.alert-text {
+  color: var(--danger);
+  font-weight: 700;
+  margin-top: 0.75rem;
+}
+
+.payment-protection-card,
+.certificate-callout {
+  background: #f8fbf9;
+  border: 1px solid rgba(45, 101, 97, 0.18);
+  border-radius: 0.9rem;
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem;
+}
+
+.payment-protection-card button,
+.certificate-callout button {
+  justify-self: start;
+}
+
+.certificate-callout {
+  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr auto;
+}
+
+@media (max-width: 760px) {
+  .workflow-steps {
+    justify-content: center;
+  }
+
+  .workflow-progress-label,
+  .trust-summary-banner,
+  .risk-summary-panel,
+  .payment-protection-card,
+  .certificate-callout {
+    font-size: 0.95rem;
+  }
+
+  .certificate-callout {
+    grid-template-columns: 1fr;
+  }
+
+  button.primary,
+  button.secondary {
+    width: 100%;
+  }
+
+  .drop-zone {
+    min-height: 14rem;
+  }
+}
+
+.workflow-grid {
   align-items: center;
   background: rgba(240, 253, 244, 0.78);
   border: 1px solid rgba(45, 101, 97, 0.18);
